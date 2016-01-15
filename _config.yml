@@ -3,10 +3,10 @@
 # ----------------------- #
 
 url: http://jjunjoe.github.io
-title: My Octopress Blog
-subtitle: A blogging framework for hackers.
-author: Your Name
-simple_search: https://www.google.com/search
+title: Joe’s Home
+subtitle: 记录我生活和工作的点滴.
+author: Joe
+simple_search: http://google.com/search
 description:
 
 # Default date format is "ordinal" (resulting in "July 22nd 2007")
@@ -19,7 +19,7 @@ date_format: "ordinal"
 subscribe_rss: /atom.xml
 subscribe_email:
 # RSS feeds can list your email address if you like
-email:
+email:jjunjoegm@gmail.com:
 
 # ----------------------- #
 #    Jekyll & Plugins     #
@@ -44,7 +44,7 @@ highlighter: pygments # default python pygments have been replaced by pygments.r
 paginate: 10          # Posts per page on the blog index
 paginate_path: "posts/:num"  # Directory base for pagination URLs eg. /posts/2/
 recent_posts: 5       # Posts in the sidebar Recent Posts section
-excerpt_link: "Read on &rarr;"  # "Continue reading" link text at the bottom of excerpted articles
+excerpt_link: “阅读全文 &rarr;"  # "Continue reading" link text at the bottom of excerpted articles
 excerpt_separator: "<!--more-->"
 
 titlecase: true       # Converts page and post titles to titlecase
