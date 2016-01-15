@@ -1,0 +1,220 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>iOS 开发随笔记录 - Joe’s Home</title>
+  <meta name="author" content="Joe">
+
+  
+  <meta name="description" content="说明 本文是我的 iOS 随笔记录，来源于我自己碰到的问题，也有看到的别人遇到的问题记录。本文会随时更新，逐渐增加&hellip;&hellip; 随笔记录 1、在 ARC 下，IBOutlets 到底应该定义成 strong 还是 weak ？ 答案： 在 ARC 中,一般 outlet &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://jjunjoe.github.io/blog/2014/07/09/ios-kai-fa-sui-bi-ji-lu/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Joe’s Home" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="/javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Joe’s Home</a></h1>
+  
+    <h2>记录我生活和工作的点滴.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="jjunjoe.github.io">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+  <li><a href="/about">About Me</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">iOS 开发随笔记录</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-07-09T22:43:04+08:00'><span class='date'><span class='date-month'>Jul</span> <span class='date-day'>9</span><span class='date-suffix'>th</span>, <span class='date-year'>2014</span></span> <span class='time'>10:43 pm</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><h1>说明</h1>
+
+<p>本文是我的 iOS 随笔记录，来源于我自己碰到的问题，也有看到的别人遇到的问题记录。本文会随时更新，逐渐增加&hellip;&hellip;</p>
+
+<!--more-->
+
+
+<h1>随笔记录</h1>
+
+<h2>1、在 ARC 下，IBOutlets 到底应该定义成 strong 还是 weak ？</h2>
+
+<p><code>答案</code>：</p>
+
+<p>在 ARC 中,一般 outlet 属性都推荐使用 weak。<br/>
+nib 的 File&rsquo;s Owner 连接到顶层对象的 outlet，应该使用 strong。</p>
+
+<p>nib 的 File&rsquo;s Owner 连接到顶层对象的 outlet：就是除 main view 里面的其他对象的 outlet。每个 nib 文件在 XCode 中打开后，左边有个列表，列表中几乎都有一个 UIView，它就是顶层对象，跟它平级的其他对象也是顶层对象。比如导航栏中的按钮 UIBarButtonItem。</p>
+
+<p>UIViewController 的 view 属性是 strong，因为 UIViewController 要直接拥有 view。而添加到view 上的 subviews IBOutlet 为 weak，因为他们不是 UIViewController 直接拥有的，直接拥有 subviews 的是 UIViewController 的 view，ARC 会帮助管理内存。</p>
+
+<p>参考苹果官方文档：
+<a href="https://developer.apple.com/library/ios/documentation/Cocoa/Conceptual/LoadingResources/CocoaNibs/CocoaNibs.html#//apple_ref/doc/uid/10000051i-CH4-SW8">https://developer.apple.com/library/ios/documentation/Cocoa/Conceptual/LoadingResources/CocoaNibs/CocoaNibs.html#//apple_ref/doc/uid/10000051i-CH4-SW8</a></p>
+
+<p>里面有如下描述：</p>
+
+<blockquote><p>From a practical perspective, in iOS and OS X outlets should be defined as declared properties. Outlets should generally be weak, except for those from File’s Owner to top-level objects in a nib file (or, in iOS, a storyboard scene) which should be strong. Outlets that you create should therefore typically be weak, because:<br/>
+* Outlets that you create to subviews of a view controller’s view or a window controller’s window, for example, are arbitrary references between objects that do not imply ownership.<br/>
+* The strong outlets are frequently specified by framework classes (for example, UIViewController’s view outlet, or NSWindowController’s window outlet).</p></blockquote>
+
+<pre><code>@property (weak) IBOutlet MyView *viewContainerSubview;
+@property (strong) IBOutlet MyOtherClass *topLevelObject;  
+</code></pre>
+
+<p>还有：<br/>
+<a href="http://stackoverflow.com/questions/7678469/should-iboutlets-be-strong-or-weak-under-arc">http://stackoverflow.com/questions/7678469/should-iboutlets-be-strong-or-weak-under-arc</a></p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Joe</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2014-07-09T22:43:04+08:00'><span class='date'><span class='date-month'>Jul</span> <span class='date-day'>9</span><span class='date-suffix'>th</span>, <span class='date-year'>2014</span></span> <span class='time'>10:43 pm</span></time>
+      
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2014/07/02/core-bluetooth-programming-guide/" title="Previous Post: Core Bluetooth Programming Guide 中文翻译">&laquo; Core Bluetooth Programming Guide 中文翻译</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2014/07/09/ios-kai-fa-sui-bi-ji-lu/">iOS 开发随笔记录</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/07/02/core-bluetooth-programming-guide/">Core Bluetooth Programming Guide 中文翻译</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/04/12/hao-de-ruan-jian-,-gong-ju-,-cha-jian-shou-cang/">好的工具软件、XCode插件收藏(持续更新中)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/03/02/nsoperation-and-nsoperationqueue/">NSOperation and NSOperationQueue</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/02/13/toll-free-bridge/">Toll-Free-Bridge</a>
+      </li>
+    
+  </ul>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2016 - Joe -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>
