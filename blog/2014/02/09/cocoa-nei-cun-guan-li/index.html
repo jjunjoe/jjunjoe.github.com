@@ -1,0 +1,580 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Cocoa 内存管理 - Joe’s Home</title>
+  <meta name="author" content="Joe">
+
+  
+  <meta name="description" content="一、Cocoa 内存管理的正确思考方式 内存管理是程序员必须掌握的基本技能，所以总结一下 Cocoa 内存管理。
+说到 Cocoa 的内存管理，必须先知道引用计数（Reference Counting）这个概念。而引用计数又分为iOS5之前的手工管理（非ARC）和iOS5之后自动管理（ARC）的 &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://jjunjoe.github.io/blog/2014/02/09/cocoa-nei-cun-guan-li/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Joe’s Home" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="/javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Joe’s Home</a></h1>
+  
+    <h2>记录我生活和工作的点滴.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="jjunjoe.github.io">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Cocoa 内存管理</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-02-09T15:35:50+08:00'><span class='date'><span class='date-month'>Feb</span> <span class='date-day'>9</span><span class='date-suffix'>th</span>, <span class='date-year'>2014</span></span> <span class='time'>3:35 pm</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><h1>一、Cocoa 内存管理的正确思考方式</h1>
+
+<p>内存管理是程序员必须掌握的基本技能，所以总结一下 Cocoa 内存管理。<br/>
+说到 Cocoa 的内存管理，必须先知道<code>引用计数（Reference Counting）</code>这个概念。而引用计数又分为iOS5之前的手工管理（非ARC）和iOS5之后自动管理（ARC）的。<!--more--></p>
+
+<h2>1、规则</h2>
+
+<ol>
+<li>自己生成的对象，自己所持有。</li>
+<li>非自己生成的对象也能持有。</li>
+<li>不再需要自己持象时释放。</li>
+<li>非自己持有的对象无法释放。</li>
+</ol>
+
+
+<h2>2、对象操作与 Objective-C 方法的对应关系</h2>
+
+<table>
+<thead>
+<tr>
+<th style="text-align:left;">对象操作                                            </th>
+<th style="text-align:left;"> Objective-C方法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">生成并持有对象(Create and have ownership of it)  </td>
+<td style="text-align:left;"> alloc/new/copy/mutableCopy</td>
+</tr>
+<tr>
+<td style="text-align:left;">持有对象(Take ownership of it)                  </td>
+<td style="text-align:left;"> retain        </td>
+</tr>
+<tr>
+<td style="text-align:left;">释放对象(Relinquish it)                         </td>
+<td style="text-align:left;">release</td>
+</tr>
+<tr>
+<td style="text-align:left;">废弃对象(Dispose of it)                         </td>
+<td style="text-align:left;">dealloc</td>
+</tr>
+</tbody>
+</table>
+
+
+<h2>3、详解 Cocoa 内存管理</h2>
+
+<h3>1）自己生成的对象，自己所持有。</h3>
+
+<pre><code>/*
+You create an object and have ownership.
+*/
+id obj = [[NSObject alloc] init];
+
+/*
+Now, you have ownership of the object.
+*/
+</code></pre>
+
+<h3>2）非自己生成的对象也能持有。</h3>
+
+<pre><code>/*
+Obtain an object without creating it yourself or having ownership
+*/
+id obj = [NSMutableArray array];
+
+/*
+The obtained object exists and you don’t have ownership of it.
+*/
+</code></pre>
+
+<h3>3）不再需要自己持象时释放。</h3>
+
+<pre><code>/*
+You create an object and have ownership.
+*/
+id obj = [[NSObject alloc] init];
+
+/*
+Now you have ownership of the object.
+*/
+[obj release];
+
+/*
+The object is relinquished.
+Though the variable obj has the pointer to the object,
+you can’t access the object anymore.
+*/
+</code></pre>
+
+<p>取得存在的对象，但自己不持有。主要用于方法返回对象。</p>
+
+<pre><code>- (id)object
+{
+    id obj = [[NSObject alloc] init];
+
+
+    /*
+    At this moment, this method has ownership of the object. 
+    */
+
+    [obj autorelease];
+
+    /*
+    The object exists, and you don’t have ownership of it. 
+    */
+    return obj;
+}
+</code></pre>
+
+<h3>4）非自己持有的对象无法释放。</h3>
+
+<pre><code>/*
+You create an object and have ownership. 
+*/
+
+id obj = [[NSObject alloc] init];
+
+/*
+Now you have ownership of the object. 
+*/
+
+[obj release];
+
+/*
+You relinquished the object, of which you don’t have ownership! 
+
+The application will crash!
+The applications will crash in these cases:
+When you call the release method to an already-disposed-of object. 
+When you access an already-disposed-of object.
+*/
+id obj1 = [obj0 object];
+/*
+The obtained object exists and you don’t have ownership of it. 
+*/
+
+[obj1 release];
+
+/*
+You relinquished the object of which you don’t have ownership!
+The application will crash sooner or later. 
+*/    
+</code></pre>
+
+<h1>二、ARC 规则</h1>
+
+<h2>1、概述</h2>
+
+<p>引用计数式内存管理的本质在ARC中并没有改变。就像<code>ARC</code>这个名表示的那样，ARC只是自动的帮助我们处理<code>引用计数</code>的相关部分。
+下面的示例代码如果注释中有/* non-ARC */，说明是ARC无效的，没有该注释说明是ARC有效的。</p>
+
+<h2>2、ARC所有权修饰符</h2>
+
+<ul>
+<li>__strong</li>
+<li>__weak</li>
+<li>__unsafe_unretained</li>
+<li>__autoreleasing</li>
+</ul>
+
+
+<p><strong><code>__strong、__weak、__autoreleasing 保证附有这些修饰符的自动变量初始化为nil。</code></strong>
+即：</p>
+
+<pre><code>id __strong obj0;
+id __weak obj1;
+id __autoreleasing obj2;
+</code></pre>
+
+<p>等价于：</p>
+
+<pre><code>id __strong obj0 = nil;
+id __weak obj1 = nil;
+id __autoreleasing obj2 = nil;
+</code></pre>
+
+<h4>a) __strong</h4>
+
+<p><strong><code>__strong是默认修饰符。表示对对象的强引用。持有强引用的变量在超出其作用域时被废弃，随着强引用的时效，引用的对象回随之释放。</code></strong></p>
+
+<h5>Sample1</h5>
+
+<p><strong><code>ARC有效</code></strong>时，下面的代码：</p>
+
+<pre><code>id  obj = [[NSObject alloc] init];
+</code></pre>
+
+<p>与<strong><code>ARC有效</code></strong>时的如下代码相同：</p>
+
+<pre><code>id __strong obj = [[NSObject alloc] init];
+</code></pre>
+
+<p>与<strong><code>ARC无效</code></strong>时的如下代码相同：</p>
+
+<pre><code>/* non-ARC */
+id obj = [[NSObject alloc] init];
+</code></pre>
+
+<h5>Sample2</h5>
+
+<p><strong><code>ARC有效</code></strong>时，下面的代码：</p>
+
+<pre><code>{
+    id __strong obj = [[NSObject alloc] init];
+}
+</code></pre>
+
+<p>与<strong><code>ARC无效</code></strong>时的如下代码相同：</p>
+
+<pre><code>/* non-ARC */
+{
+
+    id obj = [[NSObject alloc] init];
+    [obj release];
+}
+</code></pre>
+
+<h4>b) __weak</h4>
+
+<p><strong><code>__weak与__strong相反，提供对对象的弱引用，可以用来避免循环引用。</code></strong><br/>
+<strong><code>__weak弱引用不能持有对象实例，所以在超出其变量作用域时，对象即被释放。</code></strong><br/>
+<strong><code>在__weak持有某对象的弱引用时，若该对象被废弃，则此弱引用将自动失效且弱引用修饰的变量值被赋值为nil。</code></strong></p>
+
+<h5>Sample1</h5>
+
+<pre><code>id __weak obj1 = nil;
+{
+    id __strong obj0 = [[NSObject alloc] init];
+    obj1 = obj0;
+    NSLog(@"A: %@", obj1);
+}
+
+NSLog(@"B: %@", obj1);
+</code></pre>
+
+<p>结果如下:  A: &lt;NSObject: 0x753e180> <br/>
+B: (null)</p>
+
+<h4>c) __unsafe_unretained</h4>
+
+<p><strong><code>__unsafe_unretained与__weak一样，但差别在于__unsafe_unretained持有某对象的弱引用时，若该对象被废弃，则此弱引用将自动失效，但是弱引用修饰的变量值不会被赋值为nil。</code></strong><br/>
+<strong><code>__unsafe_unretained是iOS4的应用中需要用的，庆幸的是现在应用基本都不要支持iOS4了</code></strong></p>
+
+<h5>Sample1</h5>
+
+<pre><code>id __weak obj1 = nil;
+{
+    id __strong obj0 = [[NSObject alloc] init];
+    obj1 = obj0;
+    NSLog(@"A: %@", obj1);
+}
+
+NSLog(@"B: %@", obj1);
+</code></pre>
+
+<p>结果如下:  A: &lt;NSObject: 0x753e180> <br/>
+B: &lt;NSObject: 0x753e180></p>
+
+<h4>d) __autoreleasing</h4>
+
+<p>ARC有效时，autorelease功能是起作用的。</p>
+
+<h5>__autoreleasing Sample1</h5>
+
+<p><strong><code>ARC无效</code></strong>时的如下代码：</p>
+
+<pre><code>/* non-ARC */
+NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+id obj = [[NSObject alloc] init];
+[obj autorelease];
+[pool drain];
+</code></pre>
+
+<p>与<strong><code>ARC有效</code></strong>时的如下代码相同：
+    @autoreleasepool {
+        id __autoreleasing obj = [[NSObject alloc] init];
+    }</p>
+
+<h5>如下例子，因为<strong>作为方法的返回值，编译器会自动注册到autoreleasepool</strong>，所以不使用<code>__autorelease</code>修饰符也能使对象注册到autoreleasepool</h5>
+
+<pre><code>+ (id) array {
+    return [[NSMutableArray alloc] init]; 
+}
+
++ (id) array {
+    id obj = [[NSMutableArray alloc] init];
+    return obj; 
+
+}
+</code></pre>
+
+<h5><strong>访问__weak修饰的变量，必然要访问注册到autoreleasepool的对象</strong></h5>
+
+<pre><code>id __weak obj1 = obj0; NSLog(@"class=%@", [obj1 class]);
+</code></pre>
+
+<p>与下面的代码相同：</p>
+
+<pre><code>id __weak obj1 = obj0;
+id __autoreleasing tmp = obj1;
+NSLog(@"class=%@", [tmp class]);
+</code></pre>
+
+<h5>为什么访问__weak修饰的变量，必然要访问注册到autoreleasepool的对象？</h5>
+
+<p><strong>因为__weak修饰符支持有对象的弱引用，而在访问对象的过程中，该对象可能被废弃。而把要访问的__weak修饰的对象注册到autoreleasepool中，那么在@autoreleasepool块结束之前都能确保该对象存在</strong></p>
+
+<h5><strong>id指针或者对象指针的指针在没有显式指定时会被附加上__autorelease修饰符</strong></h5>
+
+<pre><code>id *obj;
+NSObject **ob;
+</code></pre>
+
+<p>等价于：</p>
+
+<pre><code>id __autorelease *obj;
+NSObject * __autorelease *ob;
+</code></pre>
+
+<p>所以：</p>
+
+<pre><code>- (BOOL) performOperationWithError:(NSError **)error;
+</code></pre>
+
+<p>等价于：</p>
+
+<pre><code>- (BOOL) performOperationWithError:(NSError * __autoreleasing *)error;
+</code></pre>
+
+<p>其实现应该如下所示：</p>
+
+<pre><code>- (BOOL) performOperationWithError:(NSError * __autoreleasing *)error {
+    /* Error occurred. Set errorCode */
+
+    *error = [[NSError alloc] initWithDomain :MyAppDomain code: errorCode userInfo: nil];
+    return NO;
+}
+</code></pre>
+
+<h5>赋值给对象指针时，所有权修饰符必须一致</h5>
+
+<p>如：</p>
+
+<pre><code>NSError *error = nil; 
+NSError **pError = &amp;error;
+</code></pre>
+
+<p>编译器会报错：<br/>
+error: initializing &lsquo;NSError <em>__autoreleasing </em>&rsquo; with an expressionof type &lsquo;NSError <em>__strong </em>&rsquo; changes retain/release properties of pointerNSError **pError = &error;    下面是正确的形式：</p>
+
+<pre><code>NSError *error = nil;
+NSError * __strong *pError = &amp;error; 
+/* No compile error */
+</code></pre>
+
+<p>其他修饰符也是：</p>
+
+<pre><code>NSError __weak *error = nil;
+NSError * __weak *pError = &amp;error; 
+/* No compile error */
+
+NSError __unsafe_unretained *unsafeError = nil;
+NSError * __unsafe_unretained *pUnsafeError = &amp;unsafeError;
+/* No compile error */
+</code></pre>
+
+<h5>虽然可以非显示的指定__autorelease修饰符，但也可以显式指定，不过显式指定时，对象变量要位自动变量（包括局部变量、函数、方法参数等）</h5>
+
+<h2>3、ARC 详细规则</h2>
+
+<ol>
+<li><strong>不能使用retain, release, retainCount, and autorelease.</strong>2. <strong>不能使用NSAllocateObject and NSDeallocateObject.</strong></li>
+<li><strong>必须遵守内存管理的方法命名规则.</strong></li>
+<li><strong>不要显式调用dealloc.</strong></li>
+<li><strong>使用 @autoreleasepool 代替 NSAutoreleasePool.</strong></li>
+<li><strong>不能使用区域（NSZone）.</strong></li>
+<li><strong>对象类型变量不能作为C语言结构体或者联合(struct/union)的成员.</strong></li>
+<li><strong>显式转换"id"和"void *&ldquo;.</strong></li>
+</ol>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Joe</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2014-02-09T15:35:50+08:00'><span class='date'><span class='date-month'>Feb</span> <span class='date-day'>9</span><span class='date-suffix'>th</span>, <span class='date-year'>2014</span></span> <span class='time'>3:35 pm</span></time>
+      
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://jjunjoe.github.io/blog/2014/02/09/cocoa-nei-cun-guan-li/" data-via="" data-counturl="http://jjunjoe.github.io/blog/2014/02/09/cocoa-nei-cun-guan-li/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2014/02/02/block-and-gcd/" title="Previous Post: Block and GCD">&laquo; Block and GCD</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2014/02/13/toll-free-bridge/" title="Next Post: Toll-Free-Bridge">Toll-Free-Bridge &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2014/07/09/ios-kai-fa-sui-bi-ji-lu/">iOS 开发随笔记录</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/07/02/core-bluetooth-programming-guide/">Core Bluetooth Programming Guide 中文翻译</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/04/12/hao-de-ruan-jian-,-gong-ju-,-cha-jian-shou-cang/">好的工具软件、XCode插件收藏(持续更新中)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/03/02/nsoperation-and-nsoperationqueue/">NSOperation and NSOperationQueue</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/02/13/toll-free-bridge/">Toll-Free-Bridge</a>
+      </li>
+    
+  </ul>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2016 - Joe -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

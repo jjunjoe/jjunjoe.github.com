@@ -1,0 +1,697 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Block | Joe’s Home]]></title>
+  <link href="http://jjunjoe.github.io/blog/categories/block/atom.xml" rel="self"/>
+  <link href="http://jjunjoe.github.io/"/>
+  <updated>2016-01-15T21:28:53+08:00</updated>
+  <id>http://jjunjoe.github.io/</id>
+  <author>
+    <name><![CDATA[Joe]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Block and GCD]]></title>
+    <link href="http://jjunjoe.github.io/blog/2014/02/02/block-and-gcd/"/>
+    <updated>2014-02-02T23:16:05+08:00</updated>
+    <id>http://jjunjoe.github.io/blog/2014/02/02/block-and-gcd</id>
+    <content type="html"><![CDATA[<h1>1、block、GCD概述</h1>
+
+<h2>Blocks</h2>
+
+<p>通常代表一个很小、自包的代码片段。其目的是支持多核并行编程。
+Blocks 作为传统回调函数的一个实用的替代办法,有以下两个原因:<br/>
+1. 它们可以让你在调用的地方编写代码实现后面将要执行的操作。因此 Blocks 通常作为框架方法的参数。  2. 它们允许你访问局部变量，而不是需要使用一个你想要执行操作时集成所有上下文的信息的数据结构来进行回调,你可以直接简单的访问局部变量。<!--more--></p>
+
+<h2>GCD(Grand Central Dispatch):</h2>
+
+<p>GCD是一套低层API，提供了一种新的方法来进行并发程序编写。GCD和NSOperationQueue都允许程序将任务切分为多个单一任务然后提交至工作队列来并发地或者串行地执行。但GCD比之NSOpertionQueue更底层更高效，它是C级别的框架，不是Cocoa框架的一部分。</p>
+
+<p>GCD拥有非常轻量级的工作单元和并发方式，并且由系统决定其最佳调度方式，所以GCD比手工实现线程更加高效。<br/>
+但GCD相对自定义原始线程还是有一个缺点：加入队列的任务什么时候开始是由系统决定的，不像原始线程能迅速启动。
+本文主要用来总结一下对 block 和 GCD 的基本使用，所以不会特别详细，也不会特别深入，不会涉及block的实现什么的，主要是让自己以后能快速参考拿来使用。</p>
+
+<h1>2、block</h1>
+
+<h2>block Object</h2>
+
+<p>block object有时被称作闭包。构建 Block Objects 和构建传统的 C 函数类似。Block Objects 可 以有返回值,可以接受参数。BlockObjects 可以内联定义,或者当做一个独立的代码块来看待,这一点与 C 函数相同。</p>
+
+<h2>1）block声明</h2>
+
+<p>与C语言的函数指针很类似，将 * 号替换为 ^ 就可以了。
+举例如下：</p>
+
+<pre><code>void (^blockReturningVoidWithVoidArgument)(void);
+
+int (^blockReturningIntWithIntAndCharArguments)(int, char);
+￼￼void (^arrayOfTenBlocksReturningVoidWithIntArgument[10])(int);
+</code></pre>
+
+<p>一个没有使用任何参数的 block 必须在参数列表 上面用 void 标明。</p>
+
+<p>在多个地方使用同一个给定的签名的 block 时，typedef可以方便block使用。
+举例如下：</p>
+
+<pre><code>typedef float (^MyBlockType)(float, float);
+MyBlockType myFirstBlock = // ... ;
+MyBlockType mySecondBlock = // ... ;
+</code></pre>
+
+<h2>2）block的创建和调用</h2>
+
+<h3>创建block：</h3>
+
+<pre><code>void (^blockReturningVoidWithVoidArgument)(void) =
+^(void){
+    NSLog(@"Hello, World");
+};
+</code></pre>
+
+<h3>调用block很简单：</h3>
+
+<pre><code>blockReturningVoidWithVoidArgument();
+</code></pre>
+
+<p>如下方式创建和调用也可以：</p>
+
+<pre><code>void (^blockReturningVoidWithVoidArgument)(void) = 0;
+blockReturningVoidWithVoidArgument = ^(void){
+    NSLog(@"Hello, World");
+};
+blockReturningVoidWithVoidArgument();
+</code></pre>
+
+<h3>block数组创建和调用</h3>
+
+<p>举例如下：</p>
+
+<pre><code>void (^blockReturningVoidWithVoidArgument[2])(void) = 0;
+blockReturningVoidWithVoidArgument = {
+    ^(void){NSLog(@"Hello, World 1");},
+    ^(void){NSLog(@"Hello, World 2");}
+};
+blockReturningVoidWithVoidArgument[0]();
+blockReturningVoidWithVoidArgument[1]();
+</code></pre>
+
+<h3>block 作为函数使用</h3>
+
+<pre><code>￼ int (^oneFrom)(int) = ^(int anInt) {
+    return anInt - 1;
+};
+
+printf("1 from 10 is %d", oneFrom(10));￼
+// Prints "1 from 10 is 9"
+</code></pre>
+
+<h3>block 作为参数使用</h3>
+
+<p>把 block 作为参数传递给一个函数或方法。需要创建一个”内联(inline)”的 block。<br/>
+下面的例子确定一个 NSSet 是否包含一个由局部变量指定的单词,并且如果条件 成立把另外一个局部变量(found)设置为 YES(并停止搜索)：</p>
+
+<pre><code>__block BOOL found = NO;
+
+NSSet *aSet = [NSSet setWithObjects: @"Alpha", @"Beta", @"Gamma", @"X", nil];
+
+NSString *string = @"gamma";
+
+[aSet enumerateObjectsUsingBlock:^(id obj, BOOL *stop) {
+
+    if ([obj localizedCaseInsensitiveCompare:string] == NSOrderedSame) {
+
+        *stop = YES;
+
+        found = YES;
+    }
+
+}];
+
+// At this point, found == YES
+</code></pre>
+
+<h3>拷贝Blocks</h3>
+
+<p>   通常,你不需要 copy(或 retain)一个 block.在你希望 block 在它被声明的作用域 被销毁后继续使用的话,你子需要做一份拷贝。拷贝会把 block 移到堆里面。你可以使用 C 函数来 copy 和 release 一个 block</p>
+
+<p>引用《Pro Multithreading and Memory Management for iOS and OS X》的描述：</p>
+
+<blockquote><p>you can use &ldquo;Block_copy&rdquo; and &ldquo;Block_release&rdquo; functions, instead of “copy” and “release” methods in Objective-C. The concept of the reference count and how to use it are just same as the copy and release methods.    void (^blk_on_heap)(void) = Block_copy(blk_on_stack);   Block_release(blk_on_heap);</p></blockquote>
+
+<h2>3) block和变量</h2>
+
+<p>这一小节有点复杂，但是是必须掌握。<br/>
+block内访问变量跟函数内访问变量很相似，但不完全一样，注意下面的列表中描述。<br/>
+我们在block里面能遇到哪些变量呢？总结如下：</p>
+
+<ol>
+<li><strong>全局变量（包括静态局部变量）、全局函数（这个严格来说不算变量，也归在这一起吧）</strong>：<br/>
+block内能访问，并且能修改这些变量，与函数范围内使用全局变量一样。block内能访问全局函数。</li>
+<li><strong>与block同一作用域范围内的局部变量</strong>：<br/>
+只能读取，不能修改。与函数不一样，函数是无法访问函数调用所在的代码同一作用域的其他变量的。</li>
+<li><strong>与block同一作用域范围内的__block变量</strong>：<br/>
+能读取，能修改。与函数不一样，函数没有__block类型变量</li>
+<li><strong>传递给block的</strong>：<br/>
+跟函数的参数一样，该怎么用就怎么用。</li>
+<li><strong>block内部的变量</strong>：<br/>
+该怎么用就怎么用。</li>
+</ol>
+
+
+<p><strong><em>注意</em></strong>：上面所说的<strong>与block同一作用域范围</strong>，指的是block所在的代码范围，比如在方法testVariablesForBlock中使用的block，那么这个范围指的是testVariablesForBlock的代码范围内，不是指block本身包含的代码范围内。</p>
+
+<p>好吧，还是举例说明一下，详细解释看代码注释：</p>
+
+<pre><code>int Global = 100;
+int static StaticGlobal = 100;
+void globalFunc(){
+    NSLog(@"Hello globalFunc");
+}
+- (void)testVariablesForBlock
+{
+    __block int blockLocal  = 100;
+    static int staticLocal  = 100;
+    int local = 100;    
+    int i = 100;
+
+    void (^blockSample)(int) = ^(int value){
+
+        int inBlock = 100;
+
+        NSLog(@"Before modified, Global:%d, StaticGlobal:%d, blockLocal:%d, staticLocal:%d, local:%d, i:%d",
+          Global, StaticGlobal, blockLocal, staticLocal, local, value);
+        // 输出：Before modified, Global:100, StaticGlobal:100, blockLocal:100, staticLocal:100, local:100, i:100
+
+        Global++;       // 全局变量，可以修改
+        StaticGlobal++; // 静态全局变量，可以修改
+        blockLocal++;   // __block变量，可以修改
+        staticLocal++;  // 静态局部变量，可以修改
+        //local++;      // 局部变量，只能读取，不能修改。此处语法错
+        value++;        // 参数，跟函数传参一样，传进来是参数的副本
+        inBlock++;      // block里面的变量，随便怎么用
+
+        globalFunc();   // 全局函数，可以调用
+        // 输出：Hello globalFunc
+    };
+
+    blockSample(i);
+
+    NSLog(@"After modified, Global:%d, StaticGlobal:%d, blockLocal:%d, staticLocal:%d, local:%d, i:%d",
+      Global, StaticGlobal, blockLocal, staticLocal, local, i);
+    // 输出：After modified, Global:101, StaticGlobal:101, blockLocal:101, staticLocal:101, local:100, i:100
+}
+</code></pre>
+
+<h2>4) block递归</h2>
+
+<p>block递归需要用到static block或者__block block：</p>
+
+<pre><code>- (void)testRecursionForBlock
+{
+    /*
+    用 static block 或 __block block 实现 block 递归
+    */
+
+    // 1 static block
+    static void (^ const staticBlock)(int) = ^(int i) {
+        if (i &gt; 0) {
+            NSLog(@" &gt;&gt; static block %d", i);
+            staticBlock(i - 1);
+        }
+    };
+    staticBlock(5);
+    /* 输出：
+    &gt;&gt; static block 5
+    &gt;&gt; static block 4
+    &gt;&gt; static block 3
+    &gt;&gt; static block 2
+    &gt;&gt; static block 1
+    */
+
+    // 2 __block block
+    __block void (^blockBlock)(int);
+    blockBlock = ^(int i) {
+        if (i &gt; 0) {
+            NSLog(@" &gt;&gt; block block %d", i);
+            blockBlock(i - 1);
+        }
+    };
+    blockBlock(5);
+    /* 输出：
+    &gt;&gt; block block 5
+    &gt;&gt; block block 4
+    &gt;&gt; block block 3
+    &gt;&gt; block block 2
+    &gt;&gt; block block 1
+    */
+}
+</code></pre>
+
+<h2>5）block的生命周期</h2>
+
+<p>需要注意的是，block是分配在stack栈空间的，所以如下代码示例是错误的：</p>
+
+<pre><code>- (void)testLifeCycleForBlock
+{
+    /*
+    block 是分配在 stack 上的
+    如下的做法 stack 分配的 block 在 if 或 else 内是有效的，但是到大括号 } 退出时就可能无效了
+    跟野指针一样危险
+    */
+
+    dispatch_block_t blockSample;
+    BOOL x = YES;
+
+    if (x) {
+        blockSample = ^{ printf("true\n"); };
+    } else {
+        blockSample = ^{ printf("false\n"); };
+    }
+    blockSample();  // 已失效
+}
+</code></pre>
+
+<h1>3、GCD</h1>
+
+<h2>1）Dispatch Queue</h2>
+
+<h3>a）dispatch queue类型</h3>
+
+<p>GCD中有两种类型的dispatch queue：</p>
+
+<ol>
+<li>Serial Dispatch Queue
+串行队列，添加到该类型队列的任务是串行执行的。</li>
+<li>Concurrent Dispatch Queue
+并发队列，添加到该类型队列的任务是并发执行的。</li>
+</ol>
+
+
+<h3>b）dispatch queue获取</h3>
+
+<p>我们可以获取如下dispatch queue：</p>
+
+<h4>Main Queue 主队列</h4>
+
+<p>主队列是<strong>串行队列</strong>，主队列中的任务都在主线程中执行，所以UI相关的代码都应该在该队列中执行。<br/>
+dispatch_get_main_queue 能获取到主队列。<br/>
+使用示例：</p>
+
+<pre><code>// How to get the main dispatch queue   
+dispatch_queue_t mainDispatchQueue = dispatch_get_main_queue();
+</code></pre>
+
+<h4>Global Queues 全局队列</h4>
+
+<p>全局队列是<strong>并发队列</strong>，并由整个进程共享。进程中存在高、中（默认）、低、后台四个优先级全局队列。<br/>
+dispatch_get_global_queue 能获取到全局队列。  <br/>
+使用示例：</p>
+
+<pre><code>// How to get a global dispatch queue of high priority
+dispatch_queue_t globalDispatchQueueHigh = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0);
+
+// How to get a global dispatch queue of default priority
+dispatch_queue_t globalDispatchQueueDefault = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+
+// How to get a global dispatch queue of low priority
+dispatch_queue_t globalDispatchQueueLow = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0);
+
+
+// How to get a global dispatch queue of background priority
+dispatch_queue_t globalDispatchQueueBackground = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0);
+</code></pre>
+
+<h4>自定义 Queue</h4>
+
+<p>这是用户创建的queue，所以我称它为自定义queue。该类型的dispatch queue是并发还是串行由创建者决定。<br/>
+  dispatch_queue_t dispatch_queue_create(
+   const char *label
+   dispatch_queue_attr_t attr) 能创建自定义队列。<br/>
+参数attr如果是<strong>DISPATCH_QUEUE_SERIAL</strong> (or NULL) 则创建<strong>串行队列</strong>；如果是 <strong>DISPATCH_QUEUE_CONCURRENT</strong> 则创建<strong>并发队列</strong>。</p>
+
+<p>自定义串行队列使用示例：</p>
+
+<pre><code>dispatch_queue_t mySerialDispatchQueue = dispatch_queue_create("com.example.gcd.MySerialDispatchQueue", NULL);
+</code></pre>
+
+<p>自定义并发队列使用示例：</p>
+
+<pre><code>dispatch_queue_t myConcurrentDispatchQueue = dispatch_queue_create( "com.example.gcd.MyConcurrentDispatchQueue", DISPATCH_QUEUE_CONCURRENT);
+dispatch_async(myConcurrentDispatchQueue, ^{NSLog(@"block on myConcurrentDispatchQueue");});
+dispatch_release(myConcurrentDispatchQueue);
+</code></pre>
+
+<p><strong><em>注意</em></strong>：自定义的queue需要自己释放。</p>
+
+<h3>c）dispatch queue 的控制</h3>
+
+<p>所谓的控制，无非就是如何使用GCD的API，所以下面挨个来。</p>
+
+<h4>dispatch_set_target_queue</h4>
+
+<p>从字面意思可以知道，dispatch_set_target_queue 使用来设置queue的，其实它主要用于自定义queue的优先级设定。新创建的自定义queue的优先级类似Global Queue的默认优先级，可以按下面的示例代码来修改</p>
+
+<pre><code>dispatch_queue_t mySerialDispatchQueue = dispatch_queue_create("com.example.gcd.MySerialDispatchQueue", NULL);
+
+dispatch_queue_t globalDispatchQueueBackground = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0);
+
+dispatch_set_target_queue(mySerialDispatchQueue, globalDispatchQueueBackground);
+</code></pre>
+
+<h4>dispatch_after设定一个定时，多久之后再将任务推入队列。  <strong><em>注意</em></strong>：是多久之后推入队列并不代表多久之后任务开始执行。</h4>
+
+<pre><code>dispatch_time_t time = dispatch_time(DISPATCH_TIME_NOW, 3ull * NSEC_PER_SEC);
+dispatch_after(time, dispatch_get_main_queue(), ^{
+    NSLog(@"waited at least three seconds."); });
+</code></pre>
+
+<h4>dispatch group</h4>
+
+<p>我们可以将完成一组相关任务的 block 添加到一个 dispatch group 中去，这样可以在 group 中所有 block 任务都完成之后，再做其他事情。</p>
+
+<pre><code>dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+dispatch_group_t group = dispatch_group_create();
+
+dispatch_group_async(group, queue, ^{NSLog(@"blk0");});
+dispatch_group_async(group, queue, ^{NSLog(@"blk1");});
+dispatch_group_async(group, queue, ^{NSLog(@"blk2");});
+
+dispatch_group_notify(group, dispatch_get_main_queue(), ^{NSLog(@"done");});
+dispatch_release(group);
+</code></pre>
+
+<p>结果可能如下, 因为使用了global queue，所以blk0, blk1, blk2的先后顺序是随机的:  blk1  blk2  blk0  done</p>
+
+<h4>dispatch wait上面的例子使用dispatch_group_notify来等待group中的任务完成后再启动一个block任务，也可以只简单的等待group完成任务，如下：</h4>
+
+<pre><code>dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+dispatch_group_t group = dispatch_group_create();
+
+dispatch_group_async(group, queue, ^{NSLog(@"blk0");});
+dispatch_group_async(group, queue, ^{NSLog(@"blk1");});
+dispatch_group_async(group, queue, ^{NSLog(@"blk2");});
+
+dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
+dispatch_release(group);
+</code></pre>
+
+<h4>dispatch_barrier_async</h4>
+
+<p>这个主要用于并发过程控制，比如读写文件时，对于读操作，可以多个读并行，但对于写操作，必须互斥，并且写操作没有完成时，读操作不允许执行，否则可能读入的就是脏数据，甚至程序会崩溃。这个功能可以用group和dispatch_set_target_queue实现，但相当复杂。GCD提供了更好的实现方式，就是dispatch_barrier_async。
+下面先看下初步的读写操作控制，如下面的示例：</p>
+
+<pre><code>dispatch_queue_t queue = dispatch_queue_create( "com.example.gcd.ForBarrier", DISPATCH_QUEUE_CONCURRENT);
+
+dispatch_async(queue, blk0_for_reading);
+dispatch_async(queue, blk1_for_reading);
+
+/*
+Writing data
+From now on, all the tasks should read the updated data.
+如果我们仅仅如下面这行代码这所示想实现写功能，是有问题的。
+无法保证写的过程中阻止读
+*/
+dispatch_async(queue, blk_for_writing);
+
+dispatch_async(queue, blk2_for_reading);
+dispatch_async(queue, blk3_for_reading);
+
+dispatch_release(queue);
+</code></pre>
+
+<p>用dispatch_barrier_async就能完美的解决该问题，如下面的示例：</p>
+
+<pre><code>dispatch_queue_t queue = dispatch_queue_create( "com.example.gcd.ForBarrier", DISPATCH_QUEUE_CONCURRENT);
+
+dispatch_async(queue, blk0_for_reading);
+dispatch_async(queue, blk1_for_reading);
+/*  写操作blk_for_writing将在blk0_for_reading，blk1_for_reading
+完成之后进行，并且此时只允许写操作，阻止其他读操作，直到写操作完成
+*/
+dispatch_barrier_async(queue, blk_for_writing);
+
+dispatch_async(queue, blk2_for_reading);
+dispatch_async(queue, blk3_for_reading);
+dispatch_release(queue);
+</code></pre>
+
+<h4>dispatch_sync</h4>
+
+<p>dispatch_sync将block任务加入给定的queue并等待任务执行结束才会返回。<br/>
+例如：</p>
+
+<pre><code>// right example1
+dispatch_queue_t queue1 = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);  
+dispatch_sync(queue1, ^{/* a task */NSLog(@"Hello?");});
+</code></pre>
+
+<p>再例如：</p>
+
+<pre><code>// right example2
+dispatch_queue_t queue2 = dispatch_queue_create("com.example.gcd.MySerialDispatchQueue2", NULL);  
+dispatch_sync(queue2, ^{NSLog(@"Hello?");});
+</code></pre>
+
+<p>对于dispatch_sync需要特别注意，引用苹果官方文档如下：</p>
+
+<blockquote><p><strong><em>You should never call the dispatch_sync or dispatch_sync_f function from a task that is executing in the same queue that you are planning to pass to the function. This is particularly important for serial queues, which are guaranteed to deadlock, but should also be avoided for concurrent queues.</em></strong></p></blockquote>
+
+<p>归结起来其实就是一句话：<br/>
+<strong><em>不要在当前队列中调用dispatch_sync 或 dispatch_sync_f，对于串行queue（包括main queue），这将必然导致死锁；在并发queue中也应该避免这么做。</em></strong></p>
+
+<p>下面是验证上面结论的代码示例：</p>
+
+<pre><code>// deadlock example3
+// 如果当前队列是main queue，必然死锁
+dispatch_queue_t queue3 = dispatch_get_main_queue();
+dispatch_sync(queue3, ^{NSLog(@"Hello?");});
+
+// deadlock example4
+// 不管当前队列是什么队列，必然死锁
+dispatch_queue_t queue4 = dispatch_get_main_queue();
+dispatch_async(queue4, ^{
+    dispatch_sync(queue4, ^{NSLog(@"Hello?");}); });
+
+// deadlock example5
+// 不管当前队列是什么队列，必然死锁
+dispatch_queue_t queue5 = dispatch_queue_create("com.example.gcd.MySerialDispatchQueue5", NULL);
+dispatch_async(queue5, ^{
+    dispatch_sync(queue5, ^{NSLog(@"Hello?");}); });
+
+// 最简单的死锁示例，不过dispatch_get_current_queue只用于调试目的，且在iOS 6中被弃用了
+dispatch_sync(dispatch_get_current_queue(), ^{NSLog(@"Hello?");});
+</code></pre>
+
+<h4>dispatch_apply</h4>
+
+<p>dispatch_apply调用单一block多次，并平行运算，然后等待所有运算结束。这个很NB，看下面的例子：</p>
+
+<pre><code>dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+dispatch_apply(10, queue, ^(size_t index) {
+    NSLog(@"%zu", index); });
+NSLog(@"done");
+</code></pre>
+
+<p>输出结果可能如下：  4  1  0  3  5  2  6  8  9  7  done<br/>
+再举个例子，假如我们有一个数组，要对数组的每个元素进行操作，然后将操作结果通知界面，大概的实现代码如下：
+    dispatch_queue_t queue =    dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    NSArray <em>array = [NSArray array];
+    /</em>  Executing on a global dispatch queue asynchronously <em>/  dispatch_async(queue, ^{
+        /</em>
+        On the global dispatch queue, dispatch_apply function waitsfor all the tasks to be finished.
+        */
+        dispatch_apply([array count], queue, ^(size_t index) {</p>
+
+<pre><code>        /*
+        do something concurrently with all the objects in the NSArray object
+        */
+        NSLog(@"%zu: %@", index, [array objectAtIndex:index]);
+    });
+
+    /*
+    All the tasks by dispatch_apply function are finished.
+    */
+
+    /*
+    Execute on the main dispatch queue asynchronously
+    */
+    dispatch_async(dispatch_get_main_queue(), ^{
+        /*
+        Executed on the main dispatch queue.
+        Something like updating userface, etc.
+        */
+        NSLog(@"done");
+    });
+});
+</code></pre>
+
+<h4>dispatch_suspend/dispatch_resume</h4>
+
+<p>挂起和调度queue</p>
+
+<pre><code>// dispatch_suspend function:
+dispatch_suspend(queue);
+
+// It can be resumed by the dispatch_resume function:
+dispatch_resume(queue);
+</code></pre>
+
+<h4>Dispatch Semaphore</h4>
+
+<p>跟别的操作系统的信号量一个原理，用于生产者-消费者模式，等到足够的资源了就发信号，等到信号的就可以消费了。</p>
+
+<pre><code>- (void)testBlockForSemaphore{
+
+    dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+
+    /*
+    Create a dispatch semaphore
+    Set the initial value 1 for the counter of the dispatch semaphore
+    to assure that only one thread will access the object of
+    NSMutableArray class at the same time.
+    */
+    dispatch_semaphore_t semaphore = dispatch_semaphore_create(1);
+    NSMutableArray *array = [[NSMutableArray alloc] init];
+    for (int i = 0; i &lt; 100000; ++i) {
+        dispatch_async(queue, ^{
+            /*
+            Wait for the dispatch semaphore
+            Wait forever until the counter of the dispatch semaphore is one and more.
+            */
+            dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+
+            /*
+            Because the counter of the dispatch semaphore is one and more,
+            the counter is decreased by one and the program flow has returned from
+            the dispatch_semaphore_wait function.
+            The counter of the dispatch semaphore is always zero here.
+            Because only one thread can access the object of the NSMutableArray
+            at the same time, you can update the object safely.
+            */
+            [array addObject:[NSNumber numberWithInt:i]];
+
+            /*
+            Because a task that needs concurrenct control is done,
+            you have to call the dispatch_semaphore_signal function
+            to increase the counter of the dispatch semaphore.
+
+            If some threads are waiting for the counter of the dispatch_semaphore
+            incremented on dispatch_semaphore_wait, the first thread will be started
+            */
+            dispatch_semaphore_signal(semaphore);
+        });
+    }
+    NSLog(@"array:%@", array);
+
+    /*
+    Originally, because the dispatch semaphore isn’t needed any more,
+    you have to release the dispatch semaphore.
+
+    dispatch_release(semaphore);
+    */
+}
+</code></pre>
+
+<h4>dispatch_once</h4>
+
+<p>dispatch_onch确保指定的任务在应用的生命周期内只执行一次。
+下面是示例：</p>
+
+<pre><code>static dispatch_once_t pred; dispatch_once(&amp;pred, ^{
+    /*
+    Initializing
+    */
+});
+</code></pre>
+
+<h4>Dispatch I/O</h4>
+
+<p>在加载很大的文件的时候，你可能希望像下面的代码所描述的那样在全局并发队列中使用多个block并发的加载文件的不同部分。</p>
+
+<pre><code>dispatch_async(queue, ^{/* loading the file from between 0 to 8191 byte.     */});
+dispatch_async(queue, ^{/* loading the file from between 8192 to 16383 byte  */});
+dispatch_async(queue, ^{/* loading the file from between 16384 to 24575 byte */});
+dispatch_async(queue, ^{/* loading the file from between 24576 to 32767 byte */});
+dispatch_async(queue, ^{/* loading the file from between 32768 to 40959 byte */});
+dispatch_async(queue, ^{/* loading the file from between 40960 to 49151 byte */});
+dispatch_async(queue, ^{/* loading the file from between 49152 to 57343 byte */});
+dispatch_async(queue, ^{/* loading the file from between 57344 to 65535 byte */});
+</code></pre>
+
+<p>Dispatch I/O 可以让你梦想成真，下面是从stackoverflow上找的一个例子：</p>
+
+<pre><code>- (void)testDispatchIO{
+
+    dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+
+    int intbuffer[] = { 1, 2, 3, 4 };
+    dispatch_data_t data = dispatch_data_create(intbuffer, 4 * sizeof(int), queue, NULL);
+
+    dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+    // Write
+    dispatch_fd_t fd = open("/tmp/data.dat", O_RDWR | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
+
+    printf("FD: %d\n", fd);
+
+    dispatch_write(fd, data, queue,^(dispatch_data_t d, int e) {
+        printf("Written %zu bytes!\n", dispatch_data_get_size(data) - (d ? dispatch_data_get_size(d) : 0));
+        printf("\tError: %d\n", e);
+        dispatch_semaphore_signal(sem);
+    });
+
+    dispatch_semaphore_wait(sem, DISPATCH_TIME_FOREVER);
+
+    close(fd);
+
+    // Read
+    fd = open("/tmp/data.dat", O_RDWR);
+
+    dispatch_read(fd, 4 * sizeof(int), queue, ^(dispatch_data_t d, int e) {
+        printf("Read %zu bytes!\n", dispatch_data_get_size(d));
+        printf("\tError: %d\n", e);
+        dispatch_semaphore_signal(sem);
+    });
+
+    dispatch_semaphore_wait(sem, DISPATCH_TIME_FOREVER);
+    close(fd);
+
+    // Exit confirmation
+    getchar();
+
+}
+</code></pre>
+
+<h4>更多方法可以访问</h4>
+
+<p><a href="https://developer.apple.com/library/mac/documentation/Performance/Reference/GCD_libdispatch_Ref/Reference/reference.html">Grand Central Dispatch (GCD) Reference</a></p>
+
+<h2>2）dispatch source</h2>
+
+<h3>a）dispatch source概述</h3>
+
+<p>dispatch source 是基础数据类型，协调特定底层系统事件的处理。GCD支持以下dispatch source：</p>
+
+<ul>
+<li>Timer dispatch source:定时器通知</li>
+<li>Singnal dispatch source:UNIX信号到达时通知</li>
+<li>Descriptor dispatch source:各种文件和socket操作通知</li>
+<li>Process dispatch source:进程相关的事件通知</li>
+<li>Mach port dispatch source::Mach相关事件通知</li>
+<li>Custom dispatch source:自定义触发的通知</li>
+</ul>
+
+
+<p>dispatch source替代了异步回调函数来处理系统相关的事件。当配置一个dispatch source时，需指定要检测的事件、dispatch queue、以及处理事件的代码（block或者函数）。当事件发生时，dispatch source 会提交你 block 或者函数到指定的queue执行。</p>
+
+<p>和手工提交到queue的任务不同，dispatch source 为应用提供连续的事件源，除非显式的取消，dispatch source 会一直保留与dispatch queue 的关联。只要相应的事件发生，就会提交关联的代码到dispatch queue 去执行。</p>
+
+<p>为了防止事件积压到dispatch queue，dispatch source实现了事件合并机制。如果新事件在上一个事件处理器出列病执行之前到达，dispatch source 会讲新旧事件的数据合并。根据事件类型的不同，合并操作可能会替换旧事件，或者更旧事件的信息。</p>
+
+<p>未完，待续&hellip;&hellip;</p>
+]]></content>
+  </entry>
+  
+</feed>

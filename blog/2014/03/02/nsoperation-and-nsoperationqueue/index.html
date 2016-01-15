@@ -1,0 +1,709 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>NSOperation and NSOperationQueue - Joe’s Home</title>
+  <meta name="author" content="Joe">
+
+  
+  <meta name="description" content="一、Operation Obeject和 Operation Queue 概述 1、Operation Object 概述 Operation Object 是 NSOperation 类的实例，封装了应用需要执行的任务和执行任务需要的数据。 NSOperation 本身是一个抽象基类， &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://jjunjoe.github.io/blog/2014/03/02/nsoperation-and-nsoperationqueue/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Joe’s Home" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="/javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Joe’s Home</a></h1>
+  
+    <h2>记录我生活和工作的点滴.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="jjunjoe.github.io">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">NSOperation and NSOperationQueue</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-03-02T14:05:08+08:00'><span class='date'><span class='date-month'>Mar</span> <span class='date-day'>2</span><span class='date-suffix'>nd</span>, <span class='date-year'>2014</span></span> <span class='time'>2:05 pm</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><h1>一、Operation Obeject和 Operation Queue 概述</h1>
+
+<h2>1、Operation Object 概述</h2>
+
+<p>Operation Object 是 NSOperation 类的实例，封装了应用需要执行的任务和执行任务需要的数据。 NSOperation 本身是一个抽象基类，我们必须实现其子类。Foundation framework 提供了两个具体子类，可以直接使用：</p>
+
+<!--more-->
+
+
+<ol>
+<li><strong><code>NSInvocationOperation</code></strong> <br/>
+基于应用的一个对象和selector来创建Operation Object，比如用现有的方法来执行需要的任务可以使用NSInvocationOperation。</li>
+<li><strong><code>NSBlockOperation</code></strong><br/>
+用来并发的执行一个或多个block对象。</li>
+</ol>
+
+
+<p>除了上述 NSInvocationOperation 和 NSBlockOperation 两种 operation onject 可以直接使用之外，我们还可以自定义 Operation object。</p>
+
+<h2>2、Operation Queue 概述</h2>
+
+<p>Operation Queue 是 Cocoa 版本的并发dispatch queue， 由 NSOperationQueue 类实现，</p>
+
+<h2>3、Operation 的优势</h2>
+
+<ol>
+<li>支持基于图的Operation Objects<code>依赖关系</code>，可以阻止某个 operation 运行，直到它依赖的所有 operation 都已经完成。</li>
+<li>支持可选的 <code>completion block</code>，在 operation 的主任务完成后调用。</li>
+<li>支持应用使用 <code>KVO</code> 通知来监控 operation 的执行状态。</li>
+<li>支持 operation 的<code>优先级</code>。</li>
+<li>支持<code>取消</code>，允许终止正在执行的任务。</li>
+</ol>
+
+
+<h2>4、并发和非并发 Operation</h2>
+
+<p>可以将 Operation 添加到 operation queue 中来执行操作，也可以手动调用 start 方法来执行一个 operation object，但这样不保证 operation 会并发执行（由 operation 的 isConcurrent 属性决定，而 isConcurrent 默认是 NO，表示 operation 与调用线程同步执行）。<br/>
+<strong>当提交非并发 operation 到 operation queue 时，queue 会创建线程来运行 operation，因此也能达到异步执行的目的。只有不希望用 operation queue 来执行 operation 时，才需要定义并发 operation。</strong></p>
+
+<h1>二、Operation Obeject和 Operation Queue 使用</h1>
+
+<h2>1、使用 Operation 同步运行任务</h2>
+
+<h3>1) 下面例子显示了如何使用 NSInvocationOperation 和 NSBlockOperation 以及自定义的 Operation 同步运行任务</h3>
+
+<p>源码文件清单如下（4个文件）：<br/>
+<code>第1个文件：CountingOperation.h</code></p>
+
+<pre><code>@interface CountingOperation : NSOperation
+/* Designated Initializer */
+- (instancetype) initWithStartingCount:(NSUInteger)paramStartingCount endingCount:(NSUInteger)paramEndingCount;
+@end
+</code></pre>
+
+<p><code>第二个文件：CountingOperation.m</code></p>
+
+<pre><code>#import "CountingOperation.h"
+
+@interface CountingOperation ()
+@property (nonatomic, unsafe_unretained) NSUInteger startingCount;
+@property (nonatomic, unsafe_unretained) NSUInteger endingCount;
+@property (nonatomic, unsafe_unretained, getter=isFinished) BOOL finished;
+@property (nonatomic, unsafe_unretained, getter=isExecuting) BOOL executing;
+@end
+
+@implementation CountingOperation
+- (instancetype) init {
+    return([self initWithStartingCount:0
+                           endingCount:1000]);
+}
+
+- (instancetype) initWithStartingCount:(NSUInteger)paramStartingCount
+                           endingCount:(NSUInteger)paramEndingCount
+{
+    self = [super init];
+
+    if (self != nil){
+
+        /* Keep these values for the main method */
+        _startingCount = paramStartingCount;
+        _endingCount = paramEndingCount;
+    }
+    return(self);
+}
+
+- (void) main {
+    @try {
+        /* Here is our autorelease pool */
+        @autoreleasepool {
+            /* Keep a local variable here that must get set to YES
+             whenever we are done with the task */
+            BOOL taskIsFinished = NO;
+
+            /* Create a while loop here that only exists
+             if the taskIsFinished variable is set to YES or
+             the operation has been cancelled */
+            while (taskIsFinished == NO &amp;&amp; [self isCancelled] == NO){
+
+                /* Perform the task here */
+                NSLog(@"Main Thread = %@", [NSThread mainThread]);
+                NSLog(@"Current Thread = %@", [NSThread currentThread]);
+                NSUInteger counter = _startingCount;
+
+                for (counter = _startingCount;
+                     counter &lt; _endingCount;
+                     counter++){
+                    NSLog(@"Count = %lu", (unsigned long)counter);
+                }
+                /* Very important. This way we can get out of the
+                 loop and we are still complying with the cancellation
+                 rules of operations */
+                taskIsFinished = YES;
+            }
+
+            /* KVO compliance. Generate the
+             required KVO notifications */
+            [self willChangeValueForKey:@"isFinished"];
+            [self willChangeValueForKey:@"isExecuting"];
+            _finished = YES;
+            _executing = NO;
+            [self didChangeValueForKey:@"isFinished"];
+            [self didChangeValueForKey:@"isExecuting"];
+        }
+    }
+    @catch (NSException * e) {
+        NSLog(@"Exception %@", e);
+    }
+}
+@end
+</code></pre>
+
+<p><code>第三个文件：AppDelegate.h</code></p>
+
+<pre><code>@interface AppDelegate : UIResponder &lt;UIApplicationDelegate&gt;
+
+@property (strong, nonatomic) UIWindow *window;
+
+@property (nonatomic, strong) NSInvocationOperation *simpleInvocationOperation;
+@property (nonatomic, strong) NSBlockOperation *simpleBlockOperation;
+
+@end
+</code></pre>
+
+<p><code>第4个文件：AppDelegate.m</code></p>
+
+<pre><code>#import "AppDelegate.h"
+
+#import "CountingOperation.h"
+
+@implementation AppDelegate
+
+- (void) simpleOperationEntry:(id)paramObject{
+    NSLog(@"Parameter Object = %@", paramObject);
+    NSLog(@"Main Thread = %@", [NSThread mainThread]);
+    NSLog(@"Current Thread = %@", [NSThread currentThread]);
+}
+
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
+{
+    NSNumber *simpleObject = [NSNumber numberWithInteger:123];
+    self.simpleInvocationOperation = [[NSInvocationOperation alloc]
+                                      initWithTarget:self
+                                      selector:@selector(simpleOperationEntry:) object:simpleObject];
+    [self.simpleInvocationOperation start];
+
+
+
+    self.simpleBlockOperation = [NSBlockOperation blockOperationWithBlock:^{
+        NSLog(@"Main Thread = %@", [NSThread mainThread]);
+        NSLog(@"Current Thread = %@", [NSThread currentThread]);
+        NSUInteger counter = 0;
+        for (counter = 0; counter &lt; 100;
+             counter++){
+            NSLog(@"Count = %lu", (unsigned long)counter);
+        } }];
+
+    /* Start the operation */
+    [self.simpleBlockOperation start];
+
+    /* Print something out just to test if we have to wait
+     for the block to execute its code or not */
+    NSLog(@"Main thread is here--after simpleBlockOperation");
+
+
+    self.simpleCountingOperation = [[CountingOperation alloc]
+                            initWithStartingCount:0
+                            endingCount:100];
+    [self.simpleCountingOperation start];
+    NSLog(@"Main thread is here--after simpleCountingOperation");
+
+    self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+    // Override point for customization after application launch.
+    self.window.backgroundColor = [UIColor whiteColor];
+    [self.window makeKeyAndVisible];
+    return YES;
+}
+</code></pre>
+
+<p><code>输出结果如下：</code><br/>
+2014-03-07 19:04:09.108 OperationSample[1497:70b] Parameter Object = 123<br/>
+2014-03-07 19:04:09.111 OperationSample[1497:70b] Main Thread = &lt;NSThread: 0x8a43800>{name = (null), num = 1}<br/>
+2014-03-07 19:04:09.112 OperationSample[1497:70b] Current Thread = &lt;NSThread: 0x8a43800>{name = (null), num = 1}<br/>
+2014-03-07 19:04:09.113 OperationSample[1497:70b] Main Thread = &lt;NSThread: 0x8a43800>{name = (null), num = 1}<br/>
+2014-03-07 19:04:09.114 OperationSample[1497:70b] Current Thread = &lt;NSThread: 0x8a43800>{name = (null), num = 1}<br/>
+2014-03-07 19:04:09.115 OperationSample[1497:70b] Count = 0<br/>
+2014-03-07 19:04:09.116 OperationSample[1497:70b] Count = 1<br/>
+&hellip;&hellip;<br/>
+2014-03-07 19:04:09.235 OperationSample[1497:70b] Count = 98<br/>
+2014-03-07 19:04:09.236 OperationSample[1497:70b] Count = 99<br/>
+2014-03-07 19:04:09.237 OperationSample[1497:70b] Main thread is here&ndash;after simpleBlockOperation<br/>
+2014-03-07 19:04:09.239 OperationSample[1497:70b] Main Thread = &lt;NSThread: 0x8a43800>{name = (null), num = 1}<br/>
+2014-03-07 19:04:09.240 OperationSample[1497:70b] Current Thread = &lt;NSThread: 0x8a43800>{name = (null), num = 1}<br/>
+2014-03-07 19:04:09.241 OperationSample[1497:70b] Count = 0<br/>
+2014-03-07 19:04:09.241 OperationSample[1497:70b] Count = 1<br/>
+&hellip;&hellip;<br/>
+2014-03-07 19:04:09.401 OperationSample[1497:70b] Count = 98<br/>
+2014-03-07 19:04:09.402 OperationSample[1497:70b] Count = 99<br/>
+2014-03-07 19:04:09.404 OperationSample[1497:70b] Main thread is here&ndash;after simpleCountingOperation</p>
+
+<h3>2) 也可以继承 NSOperation 并在子类中执行同步任务，示例在上面。</h3>
+
+<p>关于继承 NSOperation 需要注意的事情：</p>
+
+<ol>
+<li><strong>如果不打算使用 operation 队列,必须在 operation 的 start 方法中自己新建一个线程。<code>如果不想使用 operation 队列并且不想让你的 operation 与其他你手工 start 的 operation 进行异步操作，你可以简单的在 operation 的 start 方法里面调用 main 方法。</code></strong></li>
+<li><strong>在你自己实现的 operation 中，NSOperation 实例有<code>两个重要的方法必须重载:isExecuting 和 isFinished</code>。他们可以被其它的任意对象调用。在这两个方法中,必须返回一个线程安全值,这个值可以在 operation 中进行操作。一旦你的 operation 开始了,必须通过 KVO 告诉所有的监听者,你改变了这这两个方法返回的值。</strong></li>
+<li><strong>在 <code>operation 的 main 方法里面,必须提供 autorelease pool</code>,因为你的 operation 在未来的某个时刻会被 添加到一个 operation 队列中。你必须确保你的 operation 运行,这里有两种方法:手动启动 operation 或者通过 operation 队列启动。</strong></li>
+<li><strong><code>必须为你的 operation 提供一个初始化方法。所有 operation 的其它初始化方法,包括默认的 init 方法,必须调用指定的初始化方法</code>,指定的初始化方法一般具有 多个参数。其它的初始化方法必须确保传递的任何参数符合指定的初始化方法。</strong></li>
+</ol>
+
+
+<h2>2、使用 Operation 异步运行任务</h2>
+
+<p>我们希望 operations 运行在它们自己的线程中,而不是占用主线程的时间片，有两种方式异步运行任务：</p>
+
+<ol>
+<li>最好的解决方案是<code>使用 operation 队列</code>。</li>
+<li>不过,如果你想手动管理 operations(不建议),可以<code>继承 NSOperation,并在 main 方法中新启一个线程</code>。</li>
+</ol>
+
+
+<p><strong><code>注意</code>： operation 队列可能会也可能不会立即通过 nvocation operation 的 start 方法启动 invocation operation。但是,需要牢记重要的一点:添加 operations 至 operation 队列后,你不能手动 启动 operations,必须交由 operation 队列负责。</strong></p>
+
+<h3>1）下面的例子展示了将 NSInvocationOperation 加入 NSOperationQueue 的使用。</h3>
+
+<p>源码清单如下：</p>
+
+<p><code>AppDelegate.h:</code></p>
+
+<pre><code>@interface AppDelegate : UIResponder &lt;UIApplicationDelegate&gt;
+
+@property (strong, nonatomic) UIWindow *window;
+@property (nonatomic, strong) NSOperationQueue *operationQueue;
+@property (nonatomic, strong) NSInvocationOperation *firstOperation;
+@property (nonatomic, strong) NSInvocationOperation *secondOperation;
+
+@end
+</code></pre>
+
+<p><code>AppDelegate.m:</code></p>
+
+<pre><code>#import "AppDelegate.h"
+
+@implementation AppDelegate
+
+- (void) firstOperationEntry:(id)paramObject{
+    NSLog(@"%s", __FUNCTION__);
+    NSLog(@"Parameter Object = %@", paramObject);
+    NSLog(@"Main Thread = %@", [NSThread mainThread]);
+    NSLog(@"Current Thread = %@", [NSThread currentThread]);
+}
+- (void) secondOperationEntry:(id)paramObject{
+    NSLog(@"%s", __FUNCTION__);
+    NSLog(@"Parameter Object = %@", paramObject);
+    NSLog(@"Main Thread = %@", [NSThread mainThread]);
+    NSLog(@"Current Thread = %@", [NSThread currentThread]);    } 
+
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
+{
+    NSNumber *firstNumber = @111;
+    NSNumber *secondNumber = @222;
+    self.firstOperation =[[NSInvocationOperation alloc]
+                          initWithTarget:self
+                          selector:@selector(firstOperationEntry:) object:firstNumber];
+    self.secondOperation = [[NSInvocationOperation alloc]
+                            initWithTarget:self
+                            selector:@selector(secondOperationEntry:) object:secondNumber];
+    self.operationQueue = [[NSOperationQueue alloc] init];
+
+    /* Add the operations to the queue */
+    [self.operationQueue addOperation:self.firstOperation];
+    [self.operationQueue addOperation:self.secondOperation];
+    NSLog(@"Main thread is here");
+
+    // Override point for customization after application launch.
+    return YES;
+}
+</code></pre>
+
+<p><code>输出结果如下：</code><br/>
+2014-03-07 20:31:22.300 OperationAsyncSample[1961:3207] -[AppDelegate secondOperationEntry:]<br/>
+2014-03-07 20:31:22.300 OperationAsyncSample[1961:1303] -[AppDelegate firstOperationEntry:]<br/>
+2014-03-07 20:31:22.300 OperationAsyncSample[1961:70b] Main thread is here<br/>
+2014-03-07 20:31:22.306 OperationAsyncSample[1961:1303] Parameter Object = 111<br/>
+2014-03-07 20:31:22.305 OperationAsyncSample[1961:3207] Parameter Object = 222<br/>
+2014-03-07 20:31:22.307 OperationAsyncSample[1961:3207] Main Thread = &lt;NSThread: 0x8a3fa30>{name = (null), num = 1}<br/>
+2014-03-07 20:31:22.307 OperationAsyncSample[1961:1303] Main Thread = &lt;NSThread: 0x8a3fa30>{name = (null), num = 1}<br/>
+2014-03-07 20:31:22.308 OperationAsyncSample[1961:3207] Current Thread = &lt;NSThread: 0x8d32180>{name = (null), num = 2}<br/>
+2014-03-07 20:31:22.309 OperationAsyncSample[1961:1303] Current Thread = &lt;NSThread: 0x8b2f050>{name = (null), num = 3}</p>
+
+<h3>2）下面的例子展示了将自定义的 Operation 加入 NSOperationQueue 的使用。</h3>
+
+<p>如果我们子类化了一个 NSOperation 类,并且把这个子类的实例对象添加到了 operation 队列,我们需要做 稍微的改动。记住以下几点：</p>
+
+<ol>
+<li>由于把 NSOperation 的子类对象添加到一个 operation 队列中,该对象会异步运行。由此必须重载 NSOperation 的实例方法 isConcurrent,在该方法中返回 YES.</li>
+<li>在 start 方法里面执行 main 任务之前,需要定期的调用 isCancelled 方法来检测该函数的返回值,以确定是退出 start 方法还是开始运行 operation。在这里,当 operation 添加到队列中后,operation 的 start 方法将会被 operation 队列调用,start 方法中,调用 isCanelled 方法确定 operation 是否被取消。如果 operation 被取消了,只需要从 start 方法中简单的返回即可。如果没被取消,会在 start 方法中调用 main 方法。</li>
+<li>在 main task 实现部分中 override main 函数,main 函数将被 operation 执行。在这个函数里面确保分配和初始化 autorelease pool,并且在返回之前释放这个 pool。</li>
+<li>重载 operation 的 isFinished 和 isExecuting 方法,这两个函数返回对应的 BOOL 值,代表 operation 是执行完毕还是在执行中。</li>
+</ol>
+
+
+<p>源码清单如下：<br/>
+<code>SimpleOperation.h:</code></p>
+
+<pre><code>@interface SimpleOperation : NSOperation
+/* Designated Initializer */
+- (instancetype) initWithObject:(NSObject *)paramObject;
+@end
+</code></pre>
+
+<p><code>SimpleOperation.m:</code></p>
+
+<pre><code>#import "SimpleOperation.h"
+
+@interface SimpleOperation ()
+@property (nonatomic, strong) NSObject *givenObject;
+@property (nonatomic, unsafe_unretained, getter=isFinished) BOOL finished;
+@property (nonatomic, unsafe_unretained, getter=isExecuting) BOOL executing;
+@end
+
+
+@implementation SimpleOperation
+- (instancetype) init {
+    return([self initWithObject:@123]);
+    }
+    - (instancetype) initWithObject:(NSObject *)paramObject{
+    self = [super init];
+    if (self != nil){
+        /* Keep these values for the main method */
+        _givenObject = paramObject;
+    }
+    return(self);
+}
+
+    - (void) main {
+
+    @try {
+
+        @autoreleasepool {
+            /* Keep a local variable here that must get set to YES
+             whenever we are done with the task */
+            BOOL taskIsFinished = NO;
+
+            /* Create a while loop here that only exists
+             if the taskIsFinished variable is set to YES or
+             the operation has been cancelled */
+            while (taskIsFinished == NO &amp;&amp; [self isCancelled] == NO){
+
+                /* Perform the task here */
+                NSLog(@"%s", __FUNCTION__);
+                NSLog(@"Parameter Object = %@", _givenObject);
+                NSLog(@"Main Thread = %@", [NSThread mainThread]);
+                NSLog(@"Current Thread = %@", [NSThread currentThread]);
+
+                /* Very important. This way we can get out of the
+                 loop and we are still complying with the cancellation
+                 rules of operations */
+                taskIsFinished = YES;
+            }
+
+            /* KVO compliance. Generate the
+             required KVO notifications */
+            [self willChangeValueForKey:@"isFinished"];
+            [self willChangeValueForKey:@"isExecuting"];
+            _finished = YES;
+            _executing = NO;
+            [self didChangeValueForKey:@"isFinished"];
+            [self didChangeValueForKey:@"isExecuting"];
+        }
+    }
+    @catch (NSException * e) {
+        NSLog(@"Exception %@", e);
+    }
+    }
+    - (BOOL) isConcurrent{
+    return YES;
+    }
+@end
+</code></pre>
+
+<p><code>AppDelegate.h:</code></p>
+
+<pre><code>@class SimpleOperation;
+@interface AppDelegate : UIResponder &lt;UIApplicationDelegate&gt;
+
+@property (strong, nonatomic) UIWindow *window;
+@property (nonatomic, strong) NSOperationQueue *operationQueue;
+@property (nonatomic, strong) SimpleOperation *firstOperation;
+@property (nonatomic, strong) SimpleOperation *secondOperation;
+
+@end
+</code></pre>
+
+<p><code>AppDelegate.m:</code></p>
+
+<pre><code>#import "AppDelegate.h"
+#import "SimpleOperation.h"
+
+@implementation AppDelegate
+
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
+{
+    NSNumber *firstNumber = @111;
+    NSNumber *secondNumber = @222;
+    self.firstOperation = [[SimpleOperation alloc]
+                           initWithObject:firstNumber];
+    self.secondOperation = [[SimpleOperation alloc]
+                            initWithObject:secondNumber];
+    self.operationQueue = [[NSOperationQueue alloc] init];
+    /* Add the operations to the queue */
+    [self.operationQueue addOperation:self.firstOperation];
+    [self.operationQueue addOperation:self.secondOperation];
+    NSLog(@"Main thread is here");
+
+    // Override point for customization after application launch.
+    return YES;
+}
+</code></pre>
+
+<p><code>输出结果如下：</code><br/>
+2014-03-07 21:03:12.923 OperationAsyncSample[2053:320b] -[SimpleOperation main]<br/>
+2014-03-07 21:03:12.923 OperationAsyncSample[2053:1303] -[SimpleOperation main]<br/>
+2014-03-07 21:03:12.923 OperationAsyncSample[2053:70b] Main thread is here<br/>
+2014-03-07 21:03:12.926 OperationAsyncSample[2053:1303] Parameter Object = 111<br/>
+2014-03-07 21:03:12.926 OperationAsyncSample[2053:320b] Parameter Object = 222<br/>
+2014-03-07 21:03:12.927 OperationAsyncSample[2053:1303] Main Thread = &lt;NSThread: 0x8c4d6e0>{name = (null), num = 1}<br/>
+2014-03-07 21:03:12.927 OperationAsyncSample[2053:320b] Main Thread = &lt;NSThread: 0x8c4d6e0>{name = (null), num = 1}<br/>
+2014-03-07 21:03:12.928 OperationAsyncSample[2053:1303] Current Thread = &lt;NSThread: 0x8c66b80>{name = (null), num = 2}<br/>
+2014-03-07 21:03:12.928 OperationAsyncSample[2053:320b] Current Thread = &lt;NSThread: 0x8d7bba0>{name = (null), num = 3}</p>
+
+<h3>3）下面的例子展示了 Operation 创建依赖的使用。</h3>
+
+<p><code>源码清单如下：</code></p>
+
+<pre><code>@interface AppDelegate ()
+    @property (nonatomic, strong) NSInvocationOperation *firstOperation;
+@property (nonatomic, strong) NSInvocationOperation *secondOperation;
+@property (nonatomic, strong) NSOperationQueue *operationQueue;
+    @end
+    @implementation AppDelegate
+    - (void) firstOperationEntry:(id)paramObject{
+    NSLog(@"First Operation - Parameter Object = %@",
+          paramObject);
+    NSLog(@"First Operation - Main Thread = %@",
+          [NSThread mainThread]);
+    NSLog(@"First Operation - Current Thread = %@",
+          [NSThread currentThread]);
+}
+
+    - (void) secondOperationEntry:(id)paramObject{
+    NSLog(@"Second Operation - Parameter Object = %@",
+          paramObject);
+    NSLog(@"Second Operation - Main Thread = %@",
+          [NSThread mainThread]);
+    NSLog(@"Second Operation - Current Thread = %@",
+          [NSThread currentThread]);
+    }
+
+    - (BOOL) application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions{
+    NSNumber *firstNumber = @111;
+    NSNumber *secondNumber = @222;
+    self.firstOperation = [[NSInvocationOperation alloc]
+                           initWithTarget:self
+                           selector:@selector(firstOperationEntry:) object:firstNumber];
+    self.secondOperation = [[NSInvocationOperation alloc]
+                            initWithTarget:self
+                            selector:@selector(secondOperationEntry:) object:secondNumber];
+    [self.firstOperation addDependency:self.secondOperation];
+    self.operationQueue = [[NSOperationQueue alloc] init];
+
+    /* Add the operations to the queue */
+    [self.operationQueue addOperation:self.firstOperation];
+    [self.operationQueue addOperation:self.secondOperation];
+    NSLog(@"Main thread is here");
+
+    self.window = [[UIWindow alloc] initWithFrame:
+                   [[UIScreen mainScreen] bounds]];
+    self.window.backgroundColor = [UIColor whiteColor]; [self.window makeKeyAndVisible];
+    return YES;
+    }
+</code></pre>
+
+<p><code>输出结果如下：</code><br/>
+2014-03-07 21:14:30.362 OperationAsyncSample[2093:1303] Second Operation - Parameter Object = 222<br/>
+2014-03-07 21:14:30.362 OperationAsyncSample[2093:70b] Main thread is here<br/>
+2014-03-07 21:14:30.364 OperationAsyncSample[2093:1303] Second Operation - Main Thread = &lt;NSThread: 0x8d49760>{name = (null), num = 1}<br/>
+2014-03-07 21:14:30.365 OperationAsyncSample[2093:1303] Second Operation - Current Thread = &lt;NSThread: 0x8a50fc0>{name = (null), num = 2}<br/>
+2014-03-07 21:14:30.366 OperationAsyncSample[2093:3607] First Operation - Parameter Object = 111<br/>
+2014-03-07 21:14:30.366 OperationAsyncSample[2093:3607] First Operation - Main Thread = &lt;NSThread: 0x8d49760>{name = (null), num = 1}<br/>
+2014-03-07 21:14:30.367 OperationAsyncSample[2093:3607] First Operation - Current Thread = &lt;NSThread: 0x8b48d20>{name = (null), num = 3}</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Joe</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2014-03-02T14:05:08+08:00'><span class='date'><span class='date-month'>Mar</span> <span class='date-day'>2</span><span class='date-suffix'>nd</span>, <span class='date-year'>2014</span></span> <span class='time'>2:05 pm</span></time>
+      
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://jjunjoe.github.io/blog/2014/03/02/nsoperation-and-nsoperationqueue/" data-via="" data-counturl="http://jjunjoe.github.io/blog/2014/03/02/nsoperation-and-nsoperationqueue/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2014/02/13/toll-free-bridge/" title="Previous Post: Toll-Free-Bridge">&laquo; Toll-Free-Bridge</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2014/04/12/hao-de-ruan-jian-,-gong-ju-,-cha-jian-shou-cang/" title="Next Post: 好的工具软件、XCode插件收藏(持续更新中)">好的工具软件、XCode插件收藏(持续更新中) &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2014/07/09/ios-kai-fa-sui-bi-ji-lu/">iOS 开发随笔记录</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/07/02/core-bluetooth-programming-guide/">Core Bluetooth Programming Guide 中文翻译</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/04/12/hao-de-ruan-jian-,-gong-ju-,-cha-jian-shou-cang/">好的工具软件、XCode插件收藏(持续更新中)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/03/02/nsoperation-and-nsoperationqueue/">NSOperation and NSOperationQueue</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/02/13/toll-free-bridge/">Toll-Free-Bridge</a>
+      </li>
+    
+  </ul>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2016 - Joe -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
