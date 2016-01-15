@@ -11,7 +11,7 @@ categories: Apple Programming Guide
 ## 关于Core Bluetooth  
 Core Bluetooth 框架提供了蓝牙低功耗无线设备与 iOS 应用或 Mac 应用通讯的必要的类。应用可以发现，探索低功耗外设，并与它交互，比如心率监控器和数字温度调节器。`从 OS X V10.9 和 iOS 6 之后，Mac 和 iOS 设备也能充当蓝牙低功耗外设给包括 Mac 和 iOS 在内的其他设备提供数据服务了。`  
 
-![](../images/apple/corebluetooth/figure0-1.png)
+![](http://jjunjoe.github.io/images/apple/corebluetooth/figure0-1.png)
   
 <!--more-->
 ### 概览  
@@ -46,19 +46,19 @@ Core Bluetooth 框架是对使用低功耗设备的蓝牙4.0规范的抽象。�
 ## 主机和外设以及他们在蓝牙通信中扮演的角色  
 在所有的 BLE 通信中有两个主要的概念：`主机`和`外设`。基于一些传统的CS体系，`外设`典型的`拥有其他设备需要的数据`。`主机`典型的`使用外设提供的信息来完成特定的任务`。如图 1-1 所示，一个心率监控器有些有用的信息，你的 Mac 或 iOS 应用需要这些数据然后将它们友好的展现给用户。  
 
-![](../images/apple/corebluetooth/figure1-1.png)
+![](http://jjunjoe.github.io/images/apple/corebluetooth/figure1-1.png)
   
 ### 主机发现和连接发广播的外设  
 外设向外广播一些广播包形式的数据。`广播包`是外设提供的包含有用信息的一束数据，例如外设的名称和主要功能。举个例子，数字温度调节器可以广播当前室温。在 BLE，广播是外设被感知存在的主要方式。    
 主机能够扫描，侦听任何它感兴趣的正在广播的外设。如图 1-2 所示，主机能够请求连接它发现的外设。  
 
-![](../images/apple/corebluetooth/figure1-2.png)
+![](http://jjunjoe.github.io/images/apple/corebluetooth/figure1-2.png)
   
 ### 外设的数据如何组织  
 连接外设的目的是为了探索外设并与外设交互数据。在做这个之前，有必要理解外设的数据是怎么组织的。    
 外设可以包含一个或者多个服务来提供连接信号强度相关的有用的信息。`服务`是`设备完成某功能相关的数据集合或者设备某特征数据的集合`。例如，心率监控器可以展示来自心率传感器的心率数据。`服务`由`特征（characteristics）`或者`其他服务`组成。`特征`提供外设服务的进一步详情。例如，心率服务可能仅仅包含一个描述心率传感器预定位置的特征和另外一个发送心率测量数据的特征。图 1-3 列出了心率监控器服务和特征的数据结构。  
 
-![](../images/apple/corebluetooth/figure1-3.png)
+![](http://jjunjoe.github.io/images/apple/corebluetooth/figure1-3.png)
   
 ### 主机探索外设与外设交互数据  
 在主机成功与外设建立连接之后，主机可以找出外设提供的全方位的服务和特性（而广播数据可能只包含部分可用的服务）。    
@@ -73,12 +73,12 @@ Core Bluetooth 框架是对使用低功耗设备的蓝牙4.0规范的抽象。�
 #### 本地主机和远程外设  
 在主机端，本地主机设备用 `CBCentralManager` 对象表示。这些对象用来管理发现或连接远程外设（远程外设用 `CBPeripheral` 对象表示），包括扫描，发现，连接发广播的外设。图 1-4 显示了 Core Bluetooth 框架中本地主机和远程外设如何表示。  
 
-![](../images/apple/corebluetooth/figure1-4.png)
+![](http://jjunjoe.github.io/images/apple/corebluetooth/figure1-4.png)
   
 #### 远程外设的数据用 CBService 和 CBCharacteristic 对象表示  
 当你与远程外设交互数据的时候，实际上是处理它的服务和特征。在 Core Bluetooth 框架中，远程外设的服务用 CBservice 对象表示。类似的，远程外设的特征用 CBCharacteristic 对象表示。 图 1-5 阐明了远程外设的基服务和特征的基本结构。  
 
-![](../images/apple/corebluetooth/figure1-5.png)
+![](http://jjunjoe.github.io/images/apple/corebluetooth/figure1-5.png)
   
 ### 外设方相关对象  
 自 OS X v10.9 和 iOS 6，Mac 和 iOS 设备（包括Mac，iPhone，iPad）能够提供 BLE 外设功能，给其他设备提供服务数据。设置你的设备充当外设的角色时，你要完成 BLE 通信中外设那一侧的功能行为。              
@@ -86,12 +86,12 @@ Core Bluetooth 框架是对使用低功耗设备的蓝牙4.0规范的抽象。�
 #### 本地外设和远程主机  
 在外设一侧，本地外设用 CBPeripheralManager 对象表示。这些对象用来管理发布本地外设服务和特征数据库中的服务，广播到远程主机设备（用 CBCentral 对象表示）。外设管理对象也用来响应远程主机的读写请求。图 1-6 显示了本地外设和远程主机在 Core Bluetooth 中的表示。  
 
-![](../images/apple/corebluetooth/figure1-6.png)
+![](http://jjunjoe.github.io/images/apple/corebluetooth/figure1-6.png)
   
 #### 本地外设数据用 CBMutableService 和 CBMutableCharacteristic 对象表示  
 设置一个本地外设并与它交互数据时，你需要处理本地外设的多个服务和特征的版本。在 Core Bluetooth 框架，本地外设的服务用 CBMutableService 对象表示。类似的，本地外设的特征用 CBMuableCharacteristic 对象表示。 图 1-7 阐明了本地外设服务和特征的基本机构。  
 
-![](../images/apple/corebluetooth/figure1-7.png)
+![](http://jjunjoe.github.io/images/apple/corebluetooth/figure1-7.png)
   
   
 # 主机通常要完成的任务  
