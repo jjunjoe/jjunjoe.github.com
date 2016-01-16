@@ -4,7 +4,7 @@
   <title><![CDATA[Joe’s Home]]></title>
   <link href="http://jjunjoe.github.io/atom.xml" rel="self"/>
   <link href="http://jjunjoe.github.io/"/>
-  <updated>2016-01-15T23:16:18+08:00</updated>
+  <updated>2016-01-16T23:19:05+08:00</updated>
   <id>http://jjunjoe.github.io/</id>
   <author>
     <name><![CDATA[Joe]]></name>
@@ -12,6 +12,1671 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[ReactiveCocoa Document 翻译 V2.5]]></title>
+    <link href="http://jjunjoe.github.io/blog/2015/08/25/reactivecocoa-document-fan-yi-v2-dot-5/"/>
+    <updated>2015-08-25T23:16:06+08:00</updated>
+    <id>http://jjunjoe.github.io/blog/2015/08/25/reactivecocoa-document-fan-yi-v2-dot-5</id>
+    <content type="html"><![CDATA[<h1>1. 基本操作（Basic Operators）</h1>
+
+<p>描述 ReactiveCocoa 最常用的一些操作以及使用范例。
+主要是如何运用 序列（sequences） 和 信号（signals） 的流操作。</p>
+
+<p><strong>用信号实现副作用（Performing side effects with signals）</strong></p>
+
+<ol>
+<li>订阅（Subscription）</li>
+<li>依赖注入（Injecting effects）</li>
+</ol>
+
+
+<p><strong>流的传输（Transforming streams）</strong></p>
+
+<ol>
+<li>映射（Mapping）</li>
+<li>过滤（Filtering）</li>
+</ol>
+
+
+<p><strong>流的结合（Combining streams）</strong></p>
+
+<ol>
+<li>串联（Concatenating）</li>
+<li>压缩（Flattening）</li>
+<li>映射和压缩（Mapping and flattening）</li>
+</ol>
+
+
+<p><strong>信号的结合（Combining signals）</strong></p>
+
+<ol>
+<li>排序（Sequencing）</li>
+<li>合并（Merging）</li>
+<li>结合最新值（Combining latest values）</li>
+<li>切换（Switching）</li>
+</ol>
+
+
+<!--more-->
+
+
+<h2>1.1 用信号实现副作用（Performing side effects with signals）</h2>
+
+<p><strong><em>译者注：什么是冷信号，什么是热信号？</em></strong></p>
+
+<ul>
+<li>冷信号：被订阅的时候才激活。信号默认是冷类型的。</li>
+<li>热信号：返回给调用者的时候已经被激活。</li>
+</ul>
+
+
+<p><strong><em>译者注：什么是 <em>push-driven</em> ? 什么是 <em>pull-driven</em> ?</em></strong></p>
+
+<ul>
+<li>push-driven：在创建信号的时候，信号不会被立即赋值，之后才会被赋值（例如网络请求回来的结果或者是任意的用户输入的结果）。</li>
+<li>pull-driven：在创建信号的时候，序列中的值就会被确定下来，我们可以从流中一个个的查询值。</li>
+</ul>
+
+
+<p>大多数信号（signals）初始化是冷（cold）信号，这意味着它们在被订阅（Subscription）之前不会做任何工作。<br/>
+订阅之后，信号或者它的订阅者能够完成边界效应，比如输出日志到控制台，做一个网络请求，修改用户界面等。<br/>
+副作用也可以被注入到一个信号，这样的副作用不会立刻完成，但是会被稍后的每一个订阅者触发副作用。</p>
+
+<p><strong><em>副作用</em></strong>： 当调用函数时，除了返回函数值之外，还对主调用函数产生附加影响，这就叫函数的副作用。
+ReactiveCocoa 的函数参数是 In/Out 作用的参数，即函数可能改变参数里面的的内容，把一些信息通过输入参数，夹带到外界。
+这种情况严格来说也是副作用，是非纯函数。我们所讨论的函数式反应式编程中的函数式编程属于非纯函数，它是有副作用的。</p>
+
+<h3>1.1.1 订阅（Subscription）</h3>
+
+<p><code>-subscribe...</code> 方法给你机会访问信号中的当前或者将来的值:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="n">RACSignal</span> <span class="o">*</span><span class="n">letters</span> <span class="o">=</span> <span class="p">[</span><span class="s">@&quot;A B C D E F G H I&quot;</span> <span class="nl">componentsSeparatedByString</span><span class="p">:</span><span class="s">@&quot; &quot;</span><span class="p">].</span><span class="n">rac_sequence</span><span class="p">.</span><span class="n">signal</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// 输出: A B C D E F G H I</span>
+</span><span class='line'><span class="p">[</span><span class="n">letters</span> <span class="nl">subscribeNext</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;%@&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">);</span>
+</span><span class='line'><span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>对于冷信号来说，副作用会在 <em>每一次订阅</em> 时发生:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="k">__block</span> <span class="kt">unsigned</span> <span class="n">subscriptions</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">RACSignal</span> <span class="o">*</span><span class="n">loggingSignal</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACSignal</span> <span class="nl">createSignal</span><span class="p">:</span><span class="o">^</span> <span class="n">RACDisposable</span> <span class="o">*</span> <span class="p">(</span><span class="kt">id</span><span class="o">&lt;</span><span class="n">RACSubscriber</span><span class="o">&gt;</span> <span class="n">subscriber</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">subscriptions</span><span class="o">++</span><span class="p">;</span>
+</span><span class='line'>    <span class="p">[</span><span class="n">subscriber</span> <span class="n">sendCompleted</span><span class="p">];</span>
+</span><span class='line'>    <span class="k">return</span> <span class="nb">nil</span><span class="p">;</span>
+</span><span class='line'><span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// 输出:</span>
+</span><span class='line'><span class="c1">// subscription 1</span>
+</span><span class='line'><span class="p">[</span><span class="n">loggingSignal</span> <span class="nl">subscribeCompleted</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
+</span><span class='line'>    <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;subscription %u&quot;</span><span class="p">,</span> <span class="n">subscriptions</span><span class="p">);</span>
+</span><span class='line'><span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// 输出:</span>
+</span><span class='line'><span class="c1">// subscription 2</span>
+</span><span class='line'><span class="p">[</span><span class="n">loggingSignal</span> <span class="nl">subscribeCompleted</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
+</span><span class='line'>    <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;subscription %u&quot;</span><span class="p">,</span> <span class="n">subscriptions</span><span class="p">);</span>
+</span><span class='line'><span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>行为可以被 <code>connection</code>（后面会讲到connection） 改变.</p>
+
+<h3>1.1.2 注入影响（Injecting effects）</h3>
+
+<p><code>do...</code>方法给信号添加副作用而不需要实际订阅信号：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="k">__block</span> <span class="kt">unsigned</span> <span class="n">subscriptions</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">RACSignal</span> <span class="o">*</span><span class="n">loggingSignal</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACSignal</span> <span class="nl">createSignal</span><span class="p">:</span><span class="o">^</span> <span class="n">RACDisposable</span> <span class="o">*</span> <span class="p">(</span><span class="kt">id</span><span class="o">&lt;</span><span class="n">RACSubscriber</span><span class="o">&gt;</span> <span class="n">subscriber</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">subscriptions</span><span class="o">++</span><span class="p">;</span>
+</span><span class='line'>    <span class="p">[</span><span class="n">subscriber</span> <span class="n">sendCompleted</span><span class="p">];</span>
+</span><span class='line'>    <span class="k">return</span> <span class="nb">nil</span><span class="p">;</span>
+</span><span class='line'><span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// 没有任何输出</span>
+</span><span class='line'><span class="n">loggingSignal</span> <span class="o">=</span> <span class="p">[</span><span class="n">loggingSignal</span> <span class="nl">doCompleted</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
+</span><span class='line'>    <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;about to complete subscription %u&quot;</span><span class="p">,</span> <span class="n">subscriptions</span><span class="p">);</span>
+</span><span class='line'><span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// 输出:</span>
+</span><span class='line'><span class="c1">// about to complete subscription 1</span>
+</span><span class='line'><span class="c1">// subscription 1</span>
+</span><span class='line'><span class="p">[</span><span class="n">loggingSignal</span> <span class="nl">subscribeCompleted</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
+</span><span class='line'>    <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;subscription %u&quot;</span><span class="p">,</span> <span class="n">subscriptions</span><span class="p">);</span>
+</span><span class='line'><span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>1.2 流的转换（Transforming streams）</h2>
+
+<p>下面的操作将流转换为一个新的流。</p>
+
+<h3>1.2.1 映射（Mapping）</h3>
+
+<p><code>-map...</code> 方法被用来传递一个值给流，然后用该值创建一个新的流。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="n">RACSequence</span> <span class="o">*</span><span class="n">letters</span> <span class="o">=</span> <span class="p">[</span><span class="s">@&quot;A B C D E F G H I&quot;</span> <span class="nl">componentsSeparatedByString</span><span class="p">:</span><span class="s">@&quot; &quot;</span><span class="p">].</span><span class="n">rac_sequence</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Contains: AA BB CC DD EE FF GG HH II</span>
+</span><span class='line'><span class="n">RACSequence</span> <span class="o">*</span><span class="n">mapped</span> <span class="o">=</span> <span class="p">[</span><span class="n">letters</span> <span class="nl">map</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="n">value</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="p">[</span><span class="n">value</span> <span class="nl">stringByAppendingString</span><span class="p">:</span><span class="n">value</span><span class="p">];</span>
+</span><span class='line'><span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>1.2.2 过滤（Filtering）</h3>
+
+<p><code>-filter...</code> 方法用一个 block 测试每一个值，使得结果流中只包含测试通过的内容。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="n">RACSequence</span> <span class="o">*</span><span class="n">numbers</span> <span class="o">=</span> <span class="p">[</span><span class="s">@&quot;1 2 3 4 5 6 7 8 9&quot;</span> <span class="nl">componentsSeparatedByString</span><span class="p">:</span><span class="s">@&quot; &quot;</span><span class="p">].</span><span class="n">rac_sequence</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Contains: 2 4 6 8</span>
+</span><span class='line'><span class="n">RACSequence</span> <span class="o">*</span><span class="n">filtered</span> <span class="o">=</span> <span class="p">[</span><span class="n">numbers</span> <span class="nl">filter</span><span class="p">:</span><span class="o">^</span> <span class="kt">BOOL</span> <span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="n">value</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="p">(</span><span class="n">value</span><span class="p">.</span><span class="n">intValue</span> <span class="o">%</span> <span class="mi">2</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">;</span>
+</span><span class='line'><span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>1.3 流的合并（Combining streams）</h2>
+
+<p>下面的操作合并多个流到一个单一的新流。</p>
+
+<h3>1.3.1 串联（Concatenating）</h3>
+
+<p><code>-concat：</code>方法追加一个流的值到另外一个流后面。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="n">RACSequence</span> <span class="o">*</span><span class="n">letters</span> <span class="o">=</span> <span class="p">[</span><span class="s">@&quot;A B C D E F G H I&quot;</span> <span class="nl">componentsSeparatedByString</span><span class="p">:</span><span class="s">@&quot; &quot;</span><span class="p">].</span><span class="n">rac_sequence</span><span class="p">;</span>
+</span><span class='line'><span class="n">RACSequence</span> <span class="o">*</span><span class="n">numbers</span> <span class="o">=</span> <span class="p">[</span><span class="s">@&quot;1 2 3 4 5 6 7 8 9&quot;</span> <span class="nl">componentsSeparatedByString</span><span class="p">:</span><span class="s">@&quot; &quot;</span><span class="p">].</span><span class="n">rac_sequence</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Contains: A B C D E F G H I 1 2 3 4 5 6 7 8 9</span>
+</span><span class='line'><span class="n">RACSequence</span> <span class="o">*</span><span class="n">concatenated</span> <span class="o">=</span> <span class="p">[</span><span class="n">letters</span> <span class="nl">concat</span><span class="p">:</span><span class="n">numbers</span><span class="p">];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>1.3.2 扁平（Flattening，这个真不知道怎么翻译）</h3>
+
+<p><code>-flatten</code> 操作适用于基于流的流，合并他们的值到一个新的流中。</p>
+
+<p>序列是串联（concatenated）的</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="n">RACSequence</span> <span class="o">*</span><span class="n">letters</span> <span class="o">=</span> <span class="p">[</span><span class="s">@&quot;A B C D E F G H I&quot;</span> <span class="nl">componentsSeparatedByString</span><span class="p">:</span><span class="s">@&quot; &quot;</span><span class="p">].</span><span class="n">rac_sequence</span><span class="p">;</span>
+</span><span class='line'><span class="n">RACSequence</span> <span class="o">*</span><span class="n">numbers</span> <span class="o">=</span> <span class="p">[</span><span class="s">@&quot;1 2 3 4 5 6 7 8 9&quot;</span> <span class="nl">componentsSeparatedByString</span><span class="p">:</span><span class="s">@&quot; &quot;</span><span class="p">].</span><span class="n">rac_sequence</span><span class="p">;</span>
+</span><span class='line'><span class="n">RACSequence</span> <span class="o">*</span><span class="n">sequenceOfSequences</span> <span class="o">=</span> <span class="l">@[</span> <span class="n">letters</span><span class="p">,</span> <span class="n">numbers</span> <span class="l">]</span><span class="p">.</span><span class="n">rac_sequence</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Contains: A B C D E F G H I 1 2 3 4 5 6 7 8 9</span>
+</span><span class='line'><span class="n">RACSequence</span> <span class="o">*</span><span class="n">flattened</span> <span class="o">=</span> <span class="p">[</span><span class="n">sequenceOfSequences</span> <span class="n">flatten</span><span class="p">];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>信号是合并（merged）的：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="n">RACSubject</span> <span class="o">*</span><span class="n">letters</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACSubject</span> <span class="n">subject</span><span class="p">];</span>
+</span><span class='line'><span class="n">RACSubject</span> <span class="o">*</span><span class="n">numbers</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACSubject</span> <span class="n">subject</span><span class="p">];</span>
+</span><span class='line'><span class="n">RACSignal</span> <span class="o">*</span><span class="n">signalOfSignals</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACSignal</span> <span class="nl">createSignal</span><span class="p">:</span><span class="o">^</span> <span class="n">RACDisposable</span> <span class="o">*</span> <span class="p">(</span><span class="kt">id</span><span class="o">&lt;</span><span class="n">RACSubscriber</span><span class="o">&gt;</span> <span class="n">subscriber</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="p">[</span><span class="n">subscriber</span> <span class="nl">sendNext</span><span class="p">:</span><span class="n">letters</span><span class="p">];</span>
+</span><span class='line'>    <span class="p">[</span><span class="n">subscriber</span> <span class="nl">sendNext</span><span class="p">:</span><span class="n">numbers</span><span class="p">];</span>
+</span><span class='line'>    <span class="p">[</span><span class="n">subscriber</span> <span class="n">sendCompleted</span><span class="p">];</span>
+</span><span class='line'>    <span class="k">return</span> <span class="nb">nil</span><span class="p">;</span>
+</span><span class='line'><span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">RACSignal</span> <span class="o">*</span><span class="n">flattened</span> <span class="o">=</span> <span class="p">[</span><span class="n">signalOfSignals</span> <span class="n">flatten</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Outputs: A 1 B C 2</span>
+</span><span class='line'><span class="p">[</span><span class="n">flattened</span> <span class="nl">subscribeNext</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;%@&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">);</span>
+</span><span class='line'><span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">[</span><span class="n">letters</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;A&quot;</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">numbers</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;1&quot;</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">letters</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;B&quot;</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">letters</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;C&quot;</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">numbers</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;2&quot;</span><span class="p">];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>1.3.3 映射和扁平（Mapping and flattening）</h3>
+
+<p><code>flattening</code> 本身并不有趣，但弄懂它的 <code>-flattenMap</code> 方法是如何工作的很重要。</p>
+
+<p><code>-flattenMap:</code> 用来传递流的每一个值到 <em>一个新的流</em> 。然后，所有返回的流会被扁平到一个新的流。 也就是说，它相当于 <code>-flatten</code> 操作后再 <code>-map:</code> 操作。</p>
+
+<p>可用来扩展或编辑序列：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="n">RACSequence</span> <span class="o">*</span><span class="n">numbers</span> <span class="o">=</span> <span class="p">[</span><span class="s">@&quot;1 2 3 4 5 6 7 8 9&quot;</span> <span class="nl">componentsSeparatedByString</span><span class="p">:</span><span class="s">@&quot; &quot;</span><span class="p">].</span><span class="n">rac_sequence</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Contains: 1 1 2 2 3 3 4 4 5 5 6 6 7 7 8 8 9 9</span>
+</span><span class='line'><span class="n">RACSequence</span> <span class="o">*</span><span class="n">extended</span> <span class="o">=</span> <span class="p">[</span><span class="n">numbers</span> <span class="nl">flattenMap</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="n">num</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="l">@[</span> <span class="n">num</span><span class="p">,</span> <span class="n">num</span> <span class="l">]</span><span class="p">.</span><span class="n">rac_sequence</span><span class="p">;</span>
+</span><span class='line'><span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Contains: 1_ 3_ 5_ 7_ 9_</span>
+</span><span class='line'><span class="n">RACSequence</span> <span class="o">*</span><span class="n">edited</span> <span class="o">=</span> <span class="p">[</span><span class="n">numbers</span> <span class="nl">flattenMap</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="n">num</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">if</span> <span class="p">(</span><span class="n">num</span><span class="p">.</span><span class="n">intValue</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="p">[</span><span class="n">RACSequence</span> <span class="n">empty</span><span class="p">];</span>
+</span><span class='line'>    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span><span class='line'>        <span class="bp">NSString</span> <span class="o">*</span><span class="n">newNum</span> <span class="o">=</span> <span class="p">[</span><span class="n">num</span> <span class="nl">stringByAppendingString</span><span class="p">:</span><span class="s">@&quot;_&quot;</span><span class="p">];</span>
+</span><span class='line'>        <span class="k">return</span> <span class="p">[</span><span class="n">RACSequence</span> <span class="k">return</span><span class="o">:</span><span class="n">newNum</span><span class="p">];</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>或者创建多个信号自动合并：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="n">RACSignal</span> <span class="o">*</span><span class="n">letters</span> <span class="o">=</span> <span class="p">[</span><span class="s">@&quot;A B C D E F G H I&quot;</span> <span class="nl">componentsSeparatedByString</span><span class="p">:</span><span class="s">@&quot; &quot;</span><span class="p">].</span><span class="n">rac_sequence</span><span class="p">.</span><span class="n">signal</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">[[</span><span class="n">letters</span>
+</span><span class='line'>    <span class="nl">flattenMap</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="n">letter</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="p">[</span><span class="n">database</span> <span class="nl">saveEntriesForLetter</span><span class="p">:</span><span class="n">letter</span><span class="p">];</span>
+</span><span class='line'>    <span class="p">}]</span>
+</span><span class='line'>    <span class="nl">subscribeCompleted</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
+</span><span class='line'>        <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;All database entries saved successfully.&quot;</span><span class="p">);</span>
+</span><span class='line'>    <span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>1.4 信号组合（Combining signals）</h2>
+
+<p>下面的操作组合多个信号到一个新信号。</p>
+
+<h3>1.4.1 序列化（Sequencing）</h3>
+
+<p><code>-then:</code> 启动原始的信号，等待它完成，然后只转发新信号中的值。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="n">RACSignal</span> <span class="o">*</span><span class="n">letters</span> <span class="o">=</span> <span class="p">[</span><span class="s">@&quot;A B C D E F G H I&quot;</span> <span class="nl">componentsSeparatedByString</span><span class="p">:</span><span class="s">@&quot; &quot;</span><span class="p">].</span><span class="n">rac_sequence</span><span class="p">.</span><span class="n">signal</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// The new signal only contains: 1 2 3 4 5 6 7 8 9</span>
+</span><span class='line'><span class="c1">//</span>
+</span><span class='line'><span class="c1">// But when subscribed to, it also outputs: A B C D E F G H I</span>
+</span><span class='line'><span class="n">RACSignal</span> <span class="o">*</span><span class="n">sequenced</span> <span class="o">=</span> <span class="p">[[</span><span class="n">letters</span>
+</span><span class='line'>    <span class="nl">doNext</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="n">letter</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;%@&quot;</span><span class="p">,</span> <span class="n">letter</span><span class="p">);</span>
+</span><span class='line'>    <span class="p">}]</span>
+</span><span class='line'>    <span class="nl">then</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="p">[</span><span class="s">@&quot;1 2 3 4 5 6 7 8 9&quot;</span> <span class="nl">componentsSeparatedByString</span><span class="p">:</span><span class="s">@&quot; &quot;</span><span class="p">].</span><span class="n">rac_sequence</span><span class="p">.</span><span class="n">signal</span><span class="p">;</span>
+</span><span class='line'>    <span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>这在某些情况下很有用，比如执行一个信号的所有副作用，然后开始另外一个信号，并且只返回第二个信号的值。</p>
+
+<h3>1.4.2 合并（Merging）</h3>
+
+<p><code>+merge:</code> 方法会尽可能快的从很多信号中转发值到一个流中，在值到达的时候。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="n">RACSubject</span> <span class="o">*</span><span class="n">letters</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACSubject</span> <span class="n">subject</span><span class="p">];</span>
+</span><span class='line'><span class="n">RACSubject</span> <span class="o">*</span><span class="n">numbers</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACSubject</span> <span class="n">subject</span><span class="p">];</span>
+</span><span class='line'><span class="n">RACSignal</span> <span class="o">*</span><span class="n">merged</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACSignal</span> <span class="nl">merge</span><span class="p">:</span><span class="l">@[</span> <span class="n">letters</span><span class="p">,</span> <span class="n">numbers</span> <span class="l">]</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Outputs: A 1 B C 2</span>
+</span><span class='line'><span class="p">[</span><span class="n">merged</span> <span class="nl">subscribeNext</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;%@&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">);</span>
+</span><span class='line'><span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">[</span><span class="n">letters</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;A&quot;</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">numbers</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;1&quot;</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">letters</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;B&quot;</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">letters</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;C&quot;</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">numbers</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;2&quot;</span><span class="p">];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>1.4.3 组合最新值（Combining latest values）</h3>
+
+<p><code>+ combineLatest:</code> 和 <code>+combineLatest:reduce:</code> 方法会观察多个信号的改变，然后从所有信号发送最新的值：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="n">RACSubject</span> <span class="o">*</span><span class="n">letters</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACSubject</span> <span class="n">subject</span><span class="p">];</span>
+</span><span class='line'><span class="n">RACSubject</span> <span class="o">*</span><span class="n">numbers</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACSubject</span> <span class="n">subject</span><span class="p">];</span>
+</span><span class='line'><span class="n">RACSignal</span> <span class="o">*</span><span class="n">combined</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACSignal</span>
+</span><span class='line'>    <span class="nl">combineLatest</span><span class="p">:</span><span class="l">@[</span> <span class="n">letters</span><span class="p">,</span> <span class="n">numbers</span> <span class="l">]</span>
+</span><span class='line'>    <span class="nl">reduce</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="n">letter</span><span class="p">,</span> <span class="bp">NSString</span> <span class="o">*</span><span class="n">number</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="p">[</span><span class="n">letter</span> <span class="nl">stringByAppendingString</span><span class="p">:</span><span class="n">number</span><span class="p">];</span>
+</span><span class='line'>    <span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Outputs: B1 B2 C2 C3</span>
+</span><span class='line'><span class="p">[</span><span class="n">combined</span> <span class="nl">subscribeNext</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="kt">id</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;%@&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">);</span>
+</span><span class='line'><span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">[</span><span class="n">letters</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;A&quot;</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">letters</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;B&quot;</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">numbers</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;1&quot;</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">numbers</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;2&quot;</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">letters</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;C&quot;</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">numbers</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;3&quot;</span><span class="p">];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>注意结合信号会只发送第一个值，当所有输入被发送至少一个的时候。上面的例子中，<code>@"A"</code> 不会被转发因为 <code>number</code> 没有被发送一个值。</p>
+
+<h3>1.4.4 切换（Switching）</h3>
+
+<p><code>-switchToLatest</code> 操作适用于基于信号的信号，并且总是从最新信号传递值。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="n">RACSubject</span> <span class="o">*</span><span class="n">letters</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACSubject</span> <span class="n">subject</span><span class="p">];</span>
+</span><span class='line'><span class="n">RACSubject</span> <span class="o">*</span><span class="n">numbers</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACSubject</span> <span class="n">subject</span><span class="p">];</span>
+</span><span class='line'><span class="n">RACSubject</span> <span class="o">*</span><span class="n">signalOfSignals</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACSubject</span> <span class="n">subject</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">RACSignal</span> <span class="o">*</span><span class="n">switched</span> <span class="o">=</span> <span class="p">[</span><span class="n">signalOfSignals</span> <span class="n">switchToLatest</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Outputs: A B 1 D</span>
+</span><span class='line'><span class="p">[</span><span class="n">switched</span> <span class="nl">subscribeNext</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;%@&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">);</span>
+</span><span class='line'><span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">[</span><span class="n">signalOfSignals</span> <span class="nl">sendNext</span><span class="p">:</span><span class="n">letters</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">letters</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;A&quot;</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">letters</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;B&quot;</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">[</span><span class="n">signalOfSignals</span> <span class="nl">sendNext</span><span class="p">:</span><span class="n">numbers</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">letters</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;C&quot;</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">numbers</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;1&quot;</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">[</span><span class="n">signalOfSignals</span> <span class="nl">sendNext</span><span class="p">:</span><span class="n">letters</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">numbers</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;2&quot;</span><span class="p">];</span>
+</span><span class='line'><span class="p">[</span><span class="n">letters</span> <span class="nl">sendNext</span><span class="p">:</span><span class="s">@&quot;D&quot;</span><span class="p">];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h1>2 设计指南（Design Guidelines）</h1>
+
+<p>本文档包含如何在工程中使用 ReactiveCocoa 的设计指南。本章的内容重度参考了 <a href="http://blogs.msdn.com/b/rxteam/archive/2010/10/28/rx-design-guidelines.aspx">Rx Design
+Guidelines</a>。</p>
+
+<p>本文假设读者熟悉 ReactiveCocoa 的基本功能。<code>Framework Overview</code> 是开始了解 RAC 的更好的资源。</p>
+
+<p><strong><code>RACSequence</code>的约定</strong></p>
+
+<ol>
+<li>运算默认是懒执行模式。</li>
+<li>运算会阻塞调用者。</li>
+<li>副作用只发生一次。</li>
+</ol>
+
+
+<p><strong><code>RACSignal</code>的约定</strong></p>
+
+<ol>
+<li>信号事件是串行的。</li>
+<li>订阅都是发生在调度的时候。</li>
+<li>错误会被立即传送出来。</li>
+<li>副作用发生在每次订阅。</li>
+<li>订阅会自动部署完成和错误。</li>
+<li>Disposal取消正在进行的工作并且清除资源。</li>
+</ol>
+
+
+<p><strong>最佳实践</strong></p>
+
+<ol>
+<li>为返回信号的方法或属性使用描述性的声明。</li>
+<li>始终缩进流操作。</li>
+<li>流的所有值都使用相同的类型。</li>
+<li>不要retain流过长时间。</li>
+<li>只处理需要数量的流。</li>
+<li>分发信号事件到一个已知的调度。</li>
+<li>较少的场合需要切换调度者。</li>
+<li>明确信号的副作用。</li>
+<li>通过multicasting共享信号的副作用。</li>
+<li>通过指定的流的名字来调试。</li>
+<li>避免明确的订阅（subscriptions）和释放（disposal）。</li>
+<li>尽可能避免使用subjects。</li>
+</ol>
+
+
+<p><strong>完成新operators</strong></p>
+
+<ol>
+<li>优先使用基于 RACStream 方法。</li>
+<li>尽可能组合已存在的operators。</li>
+<li>避免引入并发。</li>
+<li>在dispasable中取消任务和清理所有资源。</li>
+<li>在operator中不要阻塞。</li>
+<li>深度递归要避免栈溢出。</li>
+</ol>
+
+
+<h2>2.1 RACSequence的约定（The RACSequence contract）</h2>
+
+<p><code>RACSequence</code> 是 <em>pull-driven</em> 流。序列行为类似内置集合，但有些不一样的地方。</p>
+
+<h3>2.1.1 （运算默认是懒执行模式）Evaluation occurs lazily by default</h3>
+
+<p>序列运算默认是懒执行模式，如下面的序列:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="bp">NSArray</span> <span class="o">*</span><span class="n">strings</span> <span class="o">=</span> <span class="l">@[</span> <span class="s">@&quot;A&quot;</span><span class="p">,</span> <span class="s">@&quot;B&quot;</span><span class="p">,</span> <span class="s">@&quot;C&quot;</span> <span class="l">]</span><span class="p">;</span>
+</span><span class='line'><span class="n">RACSequence</span> <span class="o">*</span><span class="n">sequence</span> <span class="o">=</span> <span class="p">[</span><span class="n">strings</span><span class="p">.</span><span class="n">rac_sequence</span> <span class="nl">map</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="n">str</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="p">[</span><span class="n">str</span> <span class="nl">stringByAppendingString</span><span class="p">:</span><span class="s">@&quot;_&quot;</span><span class="p">];</span>
+</span><span class='line'><span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>没有字符串会被实际追加直到序列真正需要的时候。
+访问 <code>sequence.head</code> 会完成 <code>A_</code> 的拼接，访问 <code>sequence.tail.head</code> 会完成 <code>B_</code> 的拼接，等等。</p>
+
+<p>这通常能避免不必要的工作（因为不需要的值不会被计算），但意味着序列是要处理的。</p>
+
+<p>一旦被计算，序列中的值就被存储不会被重新计算。访问 <code>sequence.head</code> 多次只会做一次字符串的拼接工作。</p>
+
+<p>如果懒式运算模式不可取 - 例如，因为内存有限的时候，较少使用内存更重要 - eagerSequence 属性可能被强制转为饥渴模式。</p>
+
+<h3>2.1.2 运算会阻塞调用者（Evaluation blocks the caller）</h3>
+
+<p>不管序列是懒模式还是饥渴模式，运算序列的任何部分都会阻塞调用者线程直到任务完成。阻塞是必须的因为值必须从序列中同步返回。</p>
+
+<p>如果运算序列序列的代价大到可能阻塞线程很明显的时间，考虑用 <code>-signalWithScheduler:</code> 创建一个信号然后用它来替代序列。</p>
+
+<h3>2.1.3 副作用只发生一次（Side effects occur only once）</h3>
+
+<p>当传递给序列操作的 block 引发了副作用，要明白副作用对每个值只会发生一次，就是在值被运算的时候。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="bp">NSArray</span> <span class="o">*</span><span class="n">strings</span> <span class="o">=</span> <span class="l">@[</span> <span class="s">@&quot;A&quot;</span><span class="p">,</span> <span class="s">@&quot;B&quot;</span><span class="p">,</span> <span class="s">@&quot;C&quot;</span> <span class="l">]</span><span class="p">;</span>
+</span><span class='line'><span class="n">RACSequence</span> <span class="o">*</span><span class="n">sequence</span> <span class="o">=</span> <span class="p">[</span><span class="n">strings</span><span class="p">.</span><span class="n">rac_sequence</span> <span class="nl">map</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="n">str</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;%@&quot;</span><span class="p">,</span> <span class="n">str</span><span class="p">);</span>
+</span><span class='line'>    <span class="k">return</span> <span class="p">[</span><span class="n">str</span> <span class="nl">stringByAppendingString</span><span class="p">:</span><span class="s">@&quot;_&quot;</span><span class="p">];</span>
+</span><span class='line'><span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Logs &quot;A&quot; during this call.</span>
+</span><span class='line'><span class="bp">NSString</span> <span class="o">*</span><span class="n">concatA</span> <span class="o">=</span> <span class="n">sequence</span><span class="p">.</span><span class="n">head</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Logs &quot;B&quot; during this call.</span>
+</span><span class='line'><span class="bp">NSString</span> <span class="o">*</span><span class="n">concatB</span> <span class="o">=</span> <span class="n">sequence</span><span class="p">.</span><span class="n">tail</span><span class="p">.</span><span class="n">head</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Does not log anything.</span>
+</span><span class='line'><span class="bp">NSString</span> <span class="o">*</span><span class="n">concatB2</span> <span class="o">=</span> <span class="n">sequence</span><span class="p">.</span><span class="n">tail</span><span class="p">.</span><span class="n">head</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">RACSequence</span> <span class="o">*</span><span class="n">derivedSequence</span> <span class="o">=</span> <span class="p">[</span><span class="n">sequence</span> <span class="nl">map</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="n">str</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="p">[</span><span class="s">@&quot;_&quot;</span> <span class="nl">stringByAppendingString</span><span class="p">:</span><span class="n">str</span><span class="p">];</span>
+</span><span class='line'><span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Still does not log anything, because &quot;B_&quot; was already evaluated, and the log</span>
+</span><span class='line'><span class="c1">// statement associated with it will never be re-executed.</span>
+</span><span class='line'><span class="bp">NSString</span> <span class="o">*</span><span class="n">concatB3</span> <span class="o">=</span> <span class="n">derivedSequence</span><span class="p">.</span><span class="n">tail</span><span class="p">.</span><span class="n">head</span><span class="p">;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>2.2 RACSignal 约定（The RACSignal contract）</h2>
+
+<p><code>RACSignal</code> 是 <em>push-driven</em> 流，专注于通过 <em>subscriptions</em> 分发异步事件。
+关于信号和订阅的更多内容，参见 <code>Framework Overview</code>。</p>
+
+<h3>2.2.1 信号事件是串行的（Signal events are serialized）</h3>
+
+<p>信号可以在任何线程中分发事件。连续的事件甚至被允许分发到不同的线程或者调度者，除非显示的指定了分发到特定的调度者。</p>
+
+<p>然而，RAC 不会有两个信号并发到达。一个事件被处理时，不会有另外的事件被分发。其他事件的发送会被强制等待直到当前事件被处理完成。</p>
+
+<p>特别注意，这意味着传递给 <code>-subscribeNext:error:competed:</code> 的 block 之间不需要考虑同步，因为他们永远不会被同时调用。</p>
+
+<h3>2.2.2 订阅总会在调度的时候发生（Subscription will always occur on a scheduler）</h3>
+
+<p>要保证 <code>+createSingnal</code> 和 <code>-subscribe:</code> 的行为一致，每一个 <code>RACSignal</code> 必须确保在合法的调度者上订阅。</p>
+
+<p>如果的订阅者的线程已经有一个 <code>+currentScheduler</code> ,调度会立刻发生；否则，会在后台调度的时候立刻发生。
+注意主线程总是与 <code>—mainThreadScheduler</code> 关联，所以主线程的订阅总是立刻发生。</p>
+
+<p>参见文档 <code>-subscribe:</code> 获取更多信息。</p>
+
+<h3>2.2.3 错误会立即传送出来（Errors are propagated immediately）</h3>
+
+<p>在 RAC中，<code>error</code> 事件有特别的语义。当错误被发送给信号，会立即转发给所有依赖的信号，引发整个依赖链的终止。</p>
+
+<p><code>Operators</code> 的主要目的是改变错误处理行为，但像 <code>-catch:</code>, <code>-catchTo:</code>, 或者 <code>-materialize</code> 明显是不符合此规则的。</p>
+
+<h3>2.2.4 副作用发生在每次订阅时（Side effects occur for each subscription）</h3>
+
+<p>对 <code>RACSignal</code> 的每一个新的订阅都会触发信号的副作用。这意味着任何副作用发生的次数和信号订阅的次数一样多。</p>
+
+<p>考虑如下代码：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="k">__block</span> <span class="kt">int</span> <span class="n">aNumber</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Signal that will have the side effect of incrementing `aNumber` block </span>
+</span><span class='line'><span class="c1">// variable for each subscription before sending it.</span>
+</span><span class='line'><span class="n">RACSignal</span> <span class="o">*</span><span class="n">aSignal</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACSignal</span> <span class="nl">createSignal</span><span class="p">:</span><span class="o">^</span> <span class="n">RACDisposable</span> <span class="o">*</span> <span class="p">(</span><span class="kt">id</span><span class="o">&lt;</span><span class="n">RACSubscriber</span><span class="o">&gt;</span> <span class="n">subscriber</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">aNumber</span><span class="o">++</span><span class="p">;</span>
+</span><span class='line'>  <span class="p">[</span><span class="n">subscriber</span> <span class="nl">sendNext</span><span class="p">:</span><span class="l">@(</span><span class="n">aNumber</span><span class="l">)</span><span class="p">];</span>
+</span><span class='line'>  <span class="p">[</span><span class="n">subscriber</span> <span class="n">sendCompleted</span><span class="p">];</span>
+</span><span class='line'>  <span class="k">return</span> <span class="nb">nil</span><span class="p">;</span>
+</span><span class='line'><span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// This will print &quot;subscriber one: 1&quot;</span>
+</span><span class='line'><span class="p">[</span><span class="n">aSignal</span> <span class="nl">subscribeNext</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="kt">id</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;subscriber one: %@&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">);</span>
+</span><span class='line'><span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// This will print &quot;subscriber two: 2&quot;</span>
+</span><span class='line'><span class="p">[</span><span class="n">aSignal</span> <span class="nl">subscribeNext</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="kt">id</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;subscriber two: %@&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">);</span>
+</span><span class='line'><span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>副作用会在每次订阅的时候重复发生。同样适用于 <code>stream</code> 和 <code>signal</code> 操作。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="k">__block</span> <span class="kt">int</span> <span class="n">missilesToLaunch</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Signal that will have the side effect of changing `missilesToLaunch` on</span>
+</span><span class='line'><span class="c1">// subscription.</span>
+</span><span class='line'><span class="n">RACSignal</span> <span class="o">*</span><span class="n">processedSignal</span> <span class="o">=</span> <span class="p">[[</span><span class="n">RACSignal</span>
+</span><span class='line'>    <span class="k">return</span><span class="o">:</span><span class="s">@&quot;missiles&quot;</span><span class="p">]</span>
+</span><span class='line'>  <span class="nl">map</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="kt">id</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>      <span class="n">missilesToLaunch</span><span class="o">++</span><span class="p">;</span>
+</span><span class='line'>      <span class="k">return</span> <span class="p">[</span><span class="bp">NSString</span> <span class="nl">stringWithFormat</span><span class="p">:</span><span class="s">@&quot;will launch %d %@&quot;</span><span class="p">,</span> <span class="n">missilesToLaunch</span><span class="p">,</span> <span class="n">x</span><span class="p">];</span>
+</span><span class='line'>  <span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// This will print &quot;First will launch 1 missiles&quot;</span>
+</span><span class='line'><span class="p">[</span><span class="n">processedSignal</span> <span class="nl">subscribeNext</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="kt">id</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;First %@&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">);</span>
+</span><span class='line'><span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// This will print &quot;Second will launch 2 missiles&quot;</span>
+</span><span class='line'><span class="p">[</span><span class="n">processedSignal</span> <span class="nl">subscribeNext</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="kt">id</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;Second %@&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">);</span>
+</span><span class='line'><span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>要阻止上述行为，在多次订阅一个信号时只执行它的副作用一次，可以用信号的多播功能 <code>multicasted</code>。</p>
+
+<h3>2.2.5 订阅会在完成和错误的时候自动释放（Subscriptions are automatically disposed upon completion or error）</h3>
+
+<p>当一个 <code>subscriber</code> 被发送给 <code>completed</code> 或者 <code>error</code> 事件，相关的订阅会自动被释放。这种行为通常无需手动去配置订阅。</p>
+
+<p>参见文档 <code>Memory Management</code> 获取 <code>signal</code> 的更多信息。</p>
+
+<h3>2.2.6 Disposal取消正在进行的工作和清理资源（Disposal cancels in-progress work and cleans up resources）</h3>
+
+<p>订阅被释放的时候，不管手动或自动，任何正在处理或与订阅相关的工作会尽快被取消，订阅相关的资源会被释放。</p>
+
+<h2>2.3 Best practices</h2>
+
+<p>下面的建议有助于保证基于 RAC 的代码可预测，可理解和高效。</p>
+
+<p>然而，仅仅只是指导。判断是否遵循了建议的标准是下面的代码片段。</p>
+
+<h3>2.3.1 为返回信号的属性和方法使用描述性的声明（Use descriptive declarations for methods and properties that return a signal）</h3>
+
+<p>方法或属性如果返回 <code>RACSignal</code> 类型，会很难看懂信号的语义。</p>
+
+<p>有三个关键问题必须在声明中表达清楚：</p>
+
+<ol>
+<li>信号是 <em>热</em> （返回给调用者的时候已经被激活）信号还是 <em>冷</em> （被订阅的时候才激活）信号。</li>
+<li>信号包含0个，1个，还是多个值？</li>
+<li>信号是否有副作用？</li>
+</ol>
+
+
+<p><strong>没有副作用的热信号</strong> 应该典型的用属性来代替方法。使用属性意味着在订阅信号的时间之前不需要初始化，并且额外的订阅不会改变语义。
+信号属性应该以事件命名（例如 <code>textChanged</code>）。</p>
+
+<p><strong>没有副作用的冷信号</strong> 应该从名词命名的方法中返回（例如：<code>-currentText</code>）。
+这样的方法声明意味着信号不会被该方法保留，暗示着在订阅的时候任务已经完成了。
+如果信号发送多个值，名词应该用复数（例如: <code>-currentModels</code>）。</p>
+
+<p><strong>带副作用的信号</strong> 应该被动词命名的方法返回（例如：<code>-logIn</code>）。
+动词意味着该方法不是幂等的（幂等：意味着多次执行操作的结果和第一次执行的相同。应该就是函数的可重入性），
+调用者必须小心只在副作用需要的时候才调用它。如果信号会发送一个或多个值，应该包含一个期望的名词
+（例如：<code>-loadConfigration</code>， <code>-fecthLatestEvents</code>）。</p>
+
+<h3>2.3.2 始终缩进流操作（Indent stream operations consistently）</h3>
+
+<p>如果没有合适的格式化，流代码和容易变得密集和混乱。使用缩进能够清晰的看出来链式流操作的开始和结束。</p>
+
+<p>调用流的简单的方法时，不需要要额外的缩进。：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="n">RACStream</span> <span class="o">*</span><span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="n">stream</span> <span class="nl">startWith</span><span class="p">:</span><span class="mi">@0</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">RACStream</span> <span class="o">*</span><span class="n">result2</span> <span class="o">=</span> <span class="p">[</span><span class="n">stream</span> <span class="nl">map</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSNumber</span> <span class="o">*</span><span class="n">value</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="l">@(</span><span class="n">value</span><span class="p">.</span><span class="n">integerValue</span> <span class="o">+</span> <span class="mi">1</span><span class="l">)</span><span class="p">;</span>
+</span><span class='line'><span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>如果传输同一个流多次，确保每一个步骤都是对齐的。
+复杂的操作比如 <code>+zip:reduce:</code> 或 <code>+combineLatest:reduce:</code> 可以拆分成多行提高可读性。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="n">RACStream</span> <span class="o">*</span><span class="n">result</span> <span class="o">=</span> <span class="p">[[[</span><span class="n">RACStream</span>
+</span><span class='line'>    <span class="nl">zip</span><span class="p">:</span><span class="l">@[</span> <span class="n">firstStream</span><span class="p">,</span> <span class="n">secondStream</span> <span class="l">]</span>
+</span><span class='line'>    <span class="nl">reduce</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSNumber</span> <span class="o">*</span><span class="n">first</span><span class="p">,</span> <span class="bp">NSNumber</span> <span class="o">*</span><span class="n">second</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="l">@(</span><span class="n">first</span><span class="p">.</span><span class="n">integerValue</span> <span class="o">+</span> <span class="n">second</span><span class="p">.</span><span class="n">integerValue</span><span class="l">)</span><span class="p">;</span>
+</span><span class='line'>    <span class="p">}]</span>
+</span><span class='line'>    <span class="nl">filter</span><span class="p">:</span><span class="o">^</span> <span class="kt">BOOL</span> <span class="p">(</span><span class="bp">NSNumber</span> <span class="o">*</span><span class="n">value</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">value</span><span class="p">.</span><span class="n">integerValue</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">;</span>
+</span><span class='line'>    <span class="p">}]</span>
+</span><span class='line'>    <span class="nl">map</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSNumber</span> <span class="o">*</span><span class="n">value</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="l">@(</span><span class="n">value</span><span class="p">.</span><span class="n">integerValue</span> <span class="o">+</span> <span class="mi">1</span><span class="l">)</span><span class="p">;</span>
+</span><span class='line'>    <span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>当然，带block参数的嵌套的流应该跟block一起自然缩进：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="p">[[</span><span class="n">signal</span>
+</span><span class='line'>    <span class="nl">then</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
+</span><span class='line'>        <span class="p">@</span><span class="n">strongify</span><span class="p">(</span><span class="nb">self</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="k">return</span> <span class="p">[[</span><span class="nb">self</span>
+</span><span class='line'>            <span class="n">doSomethingElse</span><span class="p">]</span>
+</span><span class='line'>            <span class="nl">catch</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSError</span> <span class="o">*</span><span class="n">error</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>                <span class="p">@</span><span class="n">strongify</span><span class="p">(</span><span class="nb">self</span><span class="p">);</span>
+</span><span class='line'>                <span class="p">[</span><span class="nb">self</span> <span class="nl">presentError</span><span class="p">:</span><span class="n">error</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'>                <span class="k">return</span> <span class="p">[</span><span class="n">RACSignal</span> <span class="n">empty</span><span class="p">];</span>
+</span><span class='line'>            <span class="p">}];</span>
+</span><span class='line'>    <span class="p">}]</span>
+</span><span class='line'>    <span class="nl">subscribeCompleted</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
+</span><span class='line'>        <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;All done.&quot;</span><span class="p">);</span>
+</span><span class='line'>    <span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>2.3.3 对流的所有的值使用相同的类型（Use the same type for all the values of a stream）</h3>
+
+<p><code>RACStream</code> （包括它的扩展，<code>RACSignal</code> 和 <code>RACSequence</code>）允许流由异质对象（即对象的类型不一致）组成，就像 Cocoa 集合那样。  <br/>
+然而，在流中使用不同的类型使得操作复杂，还会给流的使用者带来额外的负担，使用者应该只关心如何调用支持的方法。</p>
+
+<p>任何可能的时候，流都应该只包含相同类型的对象。</p>
+
+<h3>2.3.4 避免长时间持有流（Avoid retaining streams for too long）</h3>
+
+<p>保留 <code>RACStream</code> 超过必要的时间会引发关于保留的依赖问题，如内存使用过高等。</p>
+
+<p><code>RACSequence</code> 应该只被保留序列的 <code>head</code> 需要被保留的那么长时间。如果 head 不再被使用，保留节点的 tail 代替节点本身。</p>
+
+<p>参见 <code>Memory Management</code> 指引获取关于对象生命周期的更多信息。</p>
+
+<h3>2.3.5 只处理需要数量的流（Process only as much of a stream as needed）</h3>
+
+<p>让流或者 <code>RACSignal</code> 的订阅保持不必要的活跃状态会导致CPU使用增长。</p>
+
+<p>如果流中只有特定数量的值需要被用到，<code>-take:</code> 操作可以用来返回这些值，然后返回值之后立即自动结束流。</p>
+
+<p>类似 <code>-take:</code> 和 <code>-takeUntil</code> 等操作能自动释放栈。如果其余的值不再需要，任何依赖也会结束，这可以显著的减少潜在的开销。</p>
+
+<h3>2.3.6 分发信号事件到一个已知的调度（Deliver signal events onto a known scheduler）</h3>
+
+<p>当信号被一个方法返回，或者被信号组合，很难搞清楚是在哪个线程上事件被分发。
+尽管事件被确保是串行的，但有时候需要更严格的情形，比如 UI 的刷新必须在主线程。</p>
+
+<p>无论何时保证事件是串行的都很重要，<code>-deliverOn:</code> 操作应该被用来强制信号事件到达一个明确的 <code>RACScheduler</code>。</p>
+
+<h3>2.3.7 （较少的场合需要切换调度者）Switch schedulers in as few places as possible</h3>
+
+<p>在满足上面的情况下，事件还应该在必要的时候分发到明确的 <code>scheduler</code>。切换调度这会引入不必要的时延和 CPU 负担。</p>
+
+<p>通常，使用 <code>-deliverOn:</code> 应该被限制在信号链的末端。例如，在订阅之前，或者在被绑定到一个属性之前。</p>
+
+<h3>2.3.8 明确信号的副作用（Make the side effects of a signal explicit）</h3>
+
+<p><code>RACSignal</code> 的副作用应该尽可能避免，因为订阅可能出现行为副作用异常。</p>
+
+<p>然而，有时候信号时间发生时，副作用是有用的。
+尽管大多数 <code>RACStream</code> 和 <code>RACSignal</code> 操作接受任意的 block (有副作用的)，
+使用 <code>-doNext:</code>, <code>-doError:</code>, <code>-doCpmpleted:</code> 能更明确和自解释副作用的发生。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="bp">NSMutableArray</span> <span class="o">*</span><span class="n">nexts</span> <span class="o">=</span> <span class="p">[</span><span class="bp">NSMutableArray</span> <span class="n">array</span><span class="p">];</span>
+</span><span class='line'><span class="k">__block</span> <span class="bp">NSError</span> <span class="o">*</span><span class="n">receivedError</span> <span class="o">=</span> <span class="nb">nil</span><span class="p">;</span>
+</span><span class='line'><span class="k">__block</span> <span class="kt">BOOL</span> <span class="n">success</span> <span class="o">=</span> <span class="nb">NO</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">RACSignal</span> <span class="o">*</span><span class="n">bookkeepingSignal</span> <span class="o">=</span> <span class="p">[[[</span><span class="n">valueSignal</span>
+</span><span class='line'>    <span class="nl">doNext</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="kt">id</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="p">[</span><span class="n">nexts</span> <span class="nl">addObject</span><span class="p">:</span><span class="n">x</span><span class="p">];</span>
+</span><span class='line'>    <span class="p">}]</span>
+</span><span class='line'>    <span class="nl">doError</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSError</span> <span class="o">*</span><span class="n">error</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="n">receivedError</span> <span class="o">=</span> <span class="n">error</span><span class="p">;</span>
+</span><span class='line'>    <span class="p">}]</span>
+</span><span class='line'>    <span class="nl">doCompleted</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
+</span><span class='line'>        <span class="n">success</span> <span class="o">=</span> <span class="nb">YES</span><span class="p">;</span>
+</span><span class='line'>    <span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">RAC</span><span class="p">(</span><span class="nb">self</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="o">=</span> <span class="n">bookkeepingSignal</span><span class="p">;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>2.3.9 用多播共享信号副作用（Share the side effects of a signal by multicasting）</h3>
+
+<p>默认情况下，副作用在每次订阅的时候发生，但在某些特定的情况下副作用应够只发生一次&ndash;例如，
+一个网络请求很明显不应该在添加新的订阅的时候重复调用。</p>
+
+<p><code>RACSignal</code> 的 <code>-publish</code> 和 <code>-multicast:</code> 操作允许一个单一的订阅通过使用 <code>RACMulticastConnection</code> 共享给多个订阅者。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="c1">// This signal starts a new request on each subscription.</span>
+</span><span class='line'><span class="n">RACSignal</span> <span class="o">*</span><span class="n">networkRequest</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACSignal</span> <span class="nl">createSignal</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="kt">id</span><span class="o">&lt;</span><span class="n">RACSubscriber</span><span class="o">&gt;</span> <span class="n">subscriber</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">AFHTTPRequestOperation</span> <span class="o">*</span><span class="n">operation</span> <span class="o">=</span> <span class="p">[</span><span class="n">client</span>
+</span><span class='line'>        <span class="nl">HTTPRequestOperationWithRequest</span><span class="p">:</span><span class="n">request</span>
+</span><span class='line'>        <span class="nl">success</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="n">AFHTTPRequestOperation</span> <span class="o">*</span><span class="n">operation</span><span class="p">,</span> <span class="kt">id</span> <span class="n">response</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>            <span class="p">[</span><span class="n">subscriber</span> <span class="nl">sendNext</span><span class="p">:</span><span class="n">response</span><span class="p">];</span>
+</span><span class='line'>            <span class="p">[</span><span class="n">subscriber</span> <span class="n">sendCompleted</span><span class="p">];</span>
+</span><span class='line'>        <span class="p">}</span>
+</span><span class='line'>        <span class="nl">failure</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="n">AFHTTPRequestOperation</span> <span class="o">*</span><span class="n">operation</span><span class="p">,</span> <span class="bp">NSError</span> <span class="o">*</span><span class="n">error</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>            <span class="p">[</span><span class="n">subscriber</span> <span class="nl">sendError</span><span class="p">:</span><span class="n">error</span><span class="p">];</span>
+</span><span class='line'>        <span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="p">[</span><span class="n">client</span> <span class="nl">enqueueHTTPRequestOperation</span><span class="p">:</span><span class="n">operation</span><span class="p">];</span>
+</span><span class='line'>    <span class="k">return</span> <span class="p">[</span><span class="n">RACDisposable</span> <span class="nl">disposableWithBlock</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
+</span><span class='line'>        <span class="p">[</span><span class="n">operation</span> <span class="n">cancel</span><span class="p">];</span>
+</span><span class='line'>    <span class="p">}];</span>
+</span><span class='line'><span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Starts a single request, no matter how many subscriptions `connection.signal`</span>
+</span><span class='line'><span class="c1">// gets. This is equivalent to the -replay operator, or similar to</span>
+</span><span class='line'><span class="c1">// +startEagerlyWithScheduler:block:.</span>
+</span><span class='line'><span class="n">RACMulticastConnection</span> <span class="o">*</span><span class="n">connection</span> <span class="o">=</span> <span class="p">[</span><span class="n">networkRequest</span> <span class="nl">multicast</span><span class="p">:[</span><span class="n">RACReplaySubject</span> <span class="n">subject</span><span class="p">]];</span>
+</span><span class='line'><span class="p">[</span><span class="n">connection</span> <span class="n">connect</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">[</span><span class="n">connection</span><span class="p">.</span><span class="n">signal</span> <span class="nl">subscribeNext</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="kt">id</span> <span class="n">response</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;subscriber one: %@&quot;</span><span class="p">,</span> <span class="n">response</span><span class="p">);</span>
+</span><span class='line'><span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">[</span><span class="n">connection</span><span class="p">.</span><span class="n">signal</span> <span class="nl">subscribeNext</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="kt">id</span> <span class="n">response</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;subscriber two: %@&quot;</span><span class="p">,</span> <span class="n">response</span><span class="p">);</span>
+</span><span class='line'><span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>2.3.10 通过给定的名字调试流（Debug streams by giving them names）</h3>
+
+<p>每一个 <code>RACStream</code> 有一个 <code>name</code> 属性用来协助调试。
+流的 <code>description</code> 包含流的名称，并且 RAC 所有的操作都会添加这个名称。从名称可以很方便的标识出一个流。</p>
+
+<p>例如如下代码片段：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="n">RACSignal</span> <span class="o">*</span><span class="n">signal</span> <span class="o">=</span> <span class="p">[[[</span><span class="n">RACObserve</span><span class="p">(</span><span class="nb">self</span><span class="p">,</span> <span class="n">username</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">distinctUntilChanged</span><span class="p">]</span>
+</span><span class='line'>    <span class="nl">take</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+</span><span class='line'>    <span class="nl">filter</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="n">newUsername</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="p">[</span><span class="n">newUsername</span> <span class="nl">isEqualToString</span><span class="p">:</span><span class="s">@&quot;joshaber&quot;</span><span class="p">];</span>
+</span><span class='line'>    <span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;%@&quot;</span><span class="p">,</span> <span class="n">signal</span><span class="p">);</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>上面的代码会记录一个类似 <code>[[[RACObserve(self, username)] -distinctUntilChanged]
+-take: 3] -filter:</code> 的名称。</p>
+
+<p>名称也可以通过 <code>-setNameWithFormat:</code> 手工添加。</p>
+
+<p><code>RACSignal</code> 也提供 <code>-logNext</code>, <code>-logError</code>, <code>-logCompleted</code> 和 <code>-logAll</code> 方法，
+这些方法在事件发生时自动记录信号事件，包括信号名称和消息。这可以为实时观察信号提供便利。</p>
+
+<h3>2.3.11 避免明确的订阅和释放（Avoid explicit subscriptions and disposal）</h3>
+
+<p>尽管 <code>-subscribeNext:error:completed:</code> 和它的变体是处理信号的最基本的方式，但它们使用较少的声明导致代码复杂，
+推荐使用副作用，尽量复用潜在的内建功能。</p>
+
+<p>同样的，明确的使用 <code>RACDisposable</code> 类能快速导致老鼠窝一样（啥意思，一团糟的意思吗？）的资源管理和代码清除。</p>
+
+<p>下面是几乎总是该遵循的高级模式，用来替换手动订阅和释放：</p>
+
+<ul>
+<li><code>RAC</code> 或 <code>RACChannelTo</code> 宏能够用来绑定信号到一个属性，用来代替在改变发生时手动更新的机制。</li>
+<li><code>-rac_liftSelector:withSignals:</code> 方法能够用来在信号触发时自动调用一个 selector 。</li>
+<li><code>-takeUntil:</code> 之类的操作在时间发生时能够用来自动释放订阅（例如 UI 的‘取消’按钮被按下）。</li>
+</ul>
+
+
+<p>通常，相比在订阅的回调中完成相同功能，使用 <code>stream</code> 和 <code>signal</code> 内建的操作只需更简单更少出错的代码。</p>
+
+<h3>2.3.12 尽可能避免使用 subjects（Avoid using subjects when possible）</h3>
+
+<p><code>Subjects</code> 是信号用来桥接命令式代码和现实世界的一个强有力的工具。但是对于可变 RAC 来说，他们的过度使用很快会导致代码复杂。</p>
+
+<p> 因为 Subjects 可以在任何地方任何时间使用，所以 subjects 经常打破 stream 的线性处理，导致逻辑复杂。
+ Subjects 也不支持严格的 disposal，严格的 disposal 会引入不必要的任务。</p>
+
+<p>Subjects 能够被 ReactiveCocoa 的下列其他模式替换：</p>
+
+<ul>
+<li>考虑用 <code>+createSignal</code> block 生成值 来代替 提供初始化值到一个 subject 中。</li>
+<li>考虑用 <code>+combineLatest:</code> 或 <code>+zip:</code> 等操作合并多个信号的输出 来代替 分发中间结果给 subject。</li>
+<li>考虑用 <code>multicast</code> 多播基本的信号 来代替 使用subjects共享多个订阅的结果。</li>
+<li>考虑用 <code>command</code> 或 <code>-rac_signalForSelector:</code> 来代替 实现多个动作方法来实现对 subject 的简单控制。</li>
+</ul>
+
+
+<p>当 subject 必须使用时，他们几乎总是被使用在信号链的基本输入，而不是在信号链中间使用。</p>
+
+<h2>2.4 实现一个新的操作（Implementing new operators）</h2>
+
+<p>RAC 为 <code>stream</code> 和 <code>signal</code> 提供了大量内建操作，能够满足大部分应用场景；然而，RAC 不是一个封闭的系统。
+ReactiveCocoa 考虑了为了特殊的用途实现一些额外的操作。</p>
+
+<p>实现新的操作需要特别注意一些细节和简单化操作，避免在调用的代码中引入bug。</p>
+
+<p>下面的指南包括一些通用的原则能够帮助编写符合预期的 API:</p>
+
+<h3>2.4.1 优先使用基于 RACStream 的方法（Prefer building on RACStream methods）</h3>
+
+<p><code>RACStream</code> 提供的接口比 <code>RACSequence</code> 和 <code>RACSignal</code> 更简单，而且所有的 stream 操作也适用于 sequence 和 signal。</p>
+
+<p>基于这个原因，无论何时新操作都应该基于 <code>RACStream</code> 的方法实现。
+至少需要 <code>RACStream</code> 类的 <code>-bind:</code>, <code>-zipWith:</code>, 和 <code>-concat:</code> 方法，这些方法就已经很强大了，
+不需要添加其他任何功能就可以完成很多任务。</p>
+
+<p>如果一个新的 <code>RACSignal</code> 操作需要处理 <code>error</code> 和 <code>completed</code> 事件， 考虑使用 <code>-materialize</code> 方法给 stream 引入事件。
+所有 materialized 的信号事件都能够被流操作修改，这能帮助最小化使用非 stream 的操作（？？？这句话没整明白）。</p>
+
+<h3>2.4.2 尽可能组合已存在的操作（Compose existing operators when possible）</h3>
+
+<p>RAC 经过了深思熟虑，通过了合法性测试，也在很多项目中被使用。重新改写操作的代码可能不会有很好的健壮性，或者不能处理一些内建操作已经考虑到的特殊情况。</p>
+
+<p>为了最小的重复代码和尽可能少的引入 bug，在自定义的操作实现中，尽可能使用已提供的功能。通常只有很少的代码需要重写。</p>
+
+<h3>2.4.3 避免引入并发（Avoid introducing concurrency）</h3>
+
+<p>在编程中，并发是非常容易引入 bug 的。为了尽可能的避免死锁和竞态，不应该引入并发。</p>
+
+<p>调用者可以在一个明确的 <code>RACScheduler</code> 上订阅和分发事件，RAC 提供强大的 <code>parallelize work</code> 方式而不会特别复杂。</p>
+
+<h3>2.4.4 在 disposable 中取消任务和清理所有资源（Cancel work and clean up all resources in a disposable）</h3>
+
+<p> 使用 <code>+createSignal:</code> 方法创建一个信号时，它提供的 block 需要返回一个 <code>RACDisposable</code>。
+ 该 disposable 可以：</p>
+
+<ul>
+<li>可以方便的取消信号开始的任务。</li>
+<li>立即 dispose 到其他信号的订阅，然后触发取消和清理。</li>
+<li>释放信号分配的内存和其它资源。</li>
+</ul>
+
+
+<p> 这有助于实现 <code>RACSignal 的约定</code></p>
+
+<h3>2.4.5 操作中不要阻塞（Do not block in an operator）</h3>
+
+<p>流操作应该立即返回一个新流。任何操作需要完成的工作应该是新流的运算的一部分，而 <em>不是</em> 调用的流自身的一部分。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="c1">// WRONG!</span>
+</span><span class='line'><span class="p">-</span> <span class="p">(</span><span class="n">RACSequence</span> <span class="o">*</span><span class="p">)</span><span class="nf">map:</span><span class="p">(</span><span class="kt">id</span> <span class="p">(</span><span class="o">^</span><span class="p">)(</span><span class="kt">id</span><span class="p">))</span><span class="nv">block</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">RACSequence</span> <span class="o">*</span><span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACSequence</span> <span class="n">empty</span><span class="p">];</span>
+</span><span class='line'>    <span class="k">for</span> <span class="p">(</span><span class="kt">id</span> <span class="n">obj</span> <span class="k">in</span> <span class="nb">self</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="kt">id</span> <span class="n">mappedObj</span> <span class="o">=</span> <span class="n">block</span><span class="p">(</span><span class="n">obj</span><span class="p">);</span>
+</span><span class='line'>        <span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="n">result</span> <span class="nl">concat</span><span class="p">:[</span><span class="n">RACSequence</span> <span class="k">return</span><span class="o">:</span><span class="n">mappedObj</span><span class="p">]];</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">return</span> <span class="n">result</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Right!</span>
+</span><span class='line'><span class="p">-</span> <span class="p">(</span><span class="n">RACSequence</span> <span class="o">*</span><span class="p">)</span><span class="nf">map:</span><span class="p">(</span><span class="kt">id</span> <span class="p">(</span><span class="o">^</span><span class="p">)(</span><span class="kt">id</span><span class="p">))</span><span class="nv">block</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="p">[</span><span class="nb">self</span> <span class="nl">flattenMap</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="kt">id</span> <span class="n">obj</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="kt">id</span> <span class="n">mappedObj</span> <span class="o">=</span> <span class="n">block</span><span class="p">(</span><span class="n">obj</span><span class="p">);</span>
+</span><span class='line'>        <span class="k">return</span> <span class="p">[</span><span class="n">RACSequence</span> <span class="k">return</span><span class="o">:</span><span class="n">mappedObj</span><span class="p">];</span>
+</span><span class='line'>    <span class="p">}];</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>如果要从流中返回一个或多个值（例如 <code>first</code>），该规则可以忽略掉。</p>
+
+<h3>2.4.6 避免深度递归导致栈溢出（Avoid stack overflow from deep recursion）</h3>
+
+<p>任何无限递归操作都需要使用 <code>RACScheduler</code> 的 <code>shceduleRecusiveBlock:</code> 方法。该方法会将递归转换为迭代操作，防止栈溢出。</p>
+
+<p>例如，下面是 <code>-repeat</code> 的一个错误的实现，肯定会导致栈溢出和崩溃：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="p">-</span> <span class="p">(</span><span class="n">RACSignal</span> <span class="o">*</span><span class="p">)</span><span class="nf">repeat</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="p">[</span><span class="n">RACSignal</span> <span class="nl">createSignal</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="kt">id</span><span class="o">&lt;</span><span class="n">RACSubscriber</span><span class="o">&gt;</span> <span class="n">subscriber</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="n">RACCompoundDisposable</span> <span class="o">*</span><span class="n">compoundDisposable</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACCompoundDisposable</span> <span class="n">compoundDisposable</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="k">__block</span> <span class="kt">void</span> <span class="p">(</span><span class="o">^</span><span class="n">resubscribe</span><span class="p">)(</span><span class="kt">void</span><span class="p">)</span> <span class="o">=</span> <span class="o">^</span><span class="p">{</span>
+</span><span class='line'>            <span class="n">RACDisposable</span> <span class="o">*</span><span class="n">disposable</span> <span class="o">=</span> <span class="p">[</span><span class="nb">self</span> <span class="nl">subscribeNext</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="kt">id</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>                <span class="p">[</span><span class="n">subscriber</span> <span class="nl">sendNext</span><span class="p">:</span><span class="n">x</span><span class="p">];</span>
+</span><span class='line'>            <span class="p">}</span> <span class="nl">error</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSError</span> <span class="o">*</span><span class="n">error</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>                <span class="p">[</span><span class="n">subscriber</span> <span class="nl">sendError</span><span class="p">:</span><span class="n">error</span><span class="p">];</span>
+</span><span class='line'>            <span class="p">}</span> <span class="nl">completed</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
+</span><span class='line'>                <span class="n">resubscribe</span><span class="p">();</span>
+</span><span class='line'>            <span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'>            <span class="p">[</span><span class="n">compoundDisposable</span> <span class="nl">addDisposable</span><span class="p">:</span><span class="n">disposable</span><span class="p">];</span>
+</span><span class='line'>        <span class="p">};</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="k">return</span> <span class="n">compoundDisposable</span><span class="p">;</span>
+</span><span class='line'>    <span class="p">}];</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>而下面的版本就会避免栈溢出：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="p">-</span> <span class="p">(</span><span class="n">RACSignal</span> <span class="o">*</span><span class="p">)</span><span class="nf">repeat</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="p">[</span><span class="n">RACSignal</span> <span class="nl">createSignal</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="kt">id</span><span class="o">&lt;</span><span class="n">RACSubscriber</span><span class="o">&gt;</span> <span class="n">subscriber</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="n">RACCompoundDisposable</span> <span class="o">*</span><span class="n">compoundDisposable</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACCompoundDisposable</span> <span class="n">compoundDisposable</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="n">RACScheduler</span> <span class="o">*</span><span class="n">scheduler</span> <span class="o">=</span> <span class="n">RACScheduler</span><span class="p">.</span><span class="n">currentScheduler</span> <span class="o">?:</span> <span class="p">[</span><span class="n">RACScheduler</span> <span class="n">scheduler</span><span class="p">];</span>
+</span><span class='line'>        <span class="n">RACDisposable</span> <span class="o">*</span><span class="n">disposable</span> <span class="o">=</span> <span class="p">[</span><span class="n">scheduler</span> <span class="nl">scheduleRecursiveBlock</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="kt">void</span> <span class="p">(</span><span class="o">^</span><span class="n">reschedule</span><span class="p">)(</span><span class="kt">void</span><span class="p">))</span> <span class="p">{</span>
+</span><span class='line'>            <span class="n">RACDisposable</span> <span class="o">*</span><span class="n">disposable</span> <span class="o">=</span> <span class="p">[</span><span class="nb">self</span> <span class="nl">subscribeNext</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="kt">id</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>                <span class="p">[</span><span class="n">subscriber</span> <span class="nl">sendNext</span><span class="p">:</span><span class="n">x</span><span class="p">];</span>
+</span><span class='line'>            <span class="p">}</span> <span class="nl">error</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSError</span> <span class="o">*</span><span class="n">error</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>                <span class="p">[</span><span class="n">subscriber</span> <span class="nl">sendError</span><span class="p">:</span><span class="n">error</span><span class="p">];</span>
+</span><span class='line'>            <span class="p">}</span> <span class="nl">completed</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
+</span><span class='line'>                <span class="n">reschedule</span><span class="p">();</span>
+</span><span class='line'>            <span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'>            <span class="p">[</span><span class="n">compoundDisposable</span> <span class="nl">addDisposable</span><span class="p">:</span><span class="n">disposable</span><span class="p">];</span>
+</span><span class='line'>        <span class="p">}];</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="p">[</span><span class="n">compoundDisposable</span> <span class="nl">addDisposable</span><span class="p">:</span><span class="n">disposable</span><span class="p">];</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">compoundDisposable</span><span class="p">;</span>
+</span><span class='line'>    <span class="p">}];</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h1>3 与 Rx 的差异（Differences from Rx）</h1>
+
+<p>ReactiveCocoa (RAC) 深受 .NET 的 <code>Reactive Extensions</code> （Rx）影响，但不是直接的移植。
+RAC 的一些原则和接口对于已经熟悉 Rx 的开发者来说都会迷惑，但还是表达了相同的算法。</p>
+
+<p>一些不同之处，像方法和类的命名，是为了符合 Cocoa 现有的风格。
+还有一些是在 Rx 上的改进，或者从其他函数式响应式编程范式中借鉴的（例如 Elm 编程语言）。</p>
+
+<p>下面，尝试讲解 RAC 和 Rx 的不同。</p>
+
+<h2>3.1 接口（Interfaces）</h2>
+
+<p>EAC 不提供类似 .NET 中的 <code>IEnumerable</code> 和 <code>IObserver</code> 接口。RAC 中主要用三个类来代替：</p>
+
+<ul>
+<li><strong>RACStream</strong>
+实现了基本流操作的抽象类。 实现了常用的 LINQ（Language Integrated Query，C# 术语，用于方便的执行一些增删查改等）操作。</li>
+<li><strong>RACSignal</strong>
+是 <code>RACStream</code> 的一个具体的子类，实现了 <em>pish-driven</em> 流，跟 <code>IObserver</code> 很像。
+在该类或 <code>RACSignal+Operations</code> 类别中可以找到基于时间的操作，或者处理 <code>completed</code> 和 <code>error</code> 事件的方法。</li>
+<li><strong>RACSequence</strong>
+也是 <code>RACStream</code> 的一个具体的子类实现了 <em>pull-driven</em> 流，跟 <code>IEnumerable</code> 很像。</li>
+</ul>
+
+
+<h2>3.2 流操作的名称（Names of Stream Operations）</h2>
+
+<p>RAC 通常使用 LINQ 风格命名流方法。大多数异常处理深受 Haskell 和 Elm 的影响。</p>
+
+<p>注意如下不同：</p>
+
+<ul>
+<li>用 <code>-map:</code> 代替 <code>Select</code></li>
+<li>用 <code>-filter:</code> 代替 <code>Where</code></li>
+<li>用 <code>-flatten</code> 代替 <code>Merge</code></li>
+<li>用 <code>-flattenMap:</code> 代替 <code>SelectMany</code></li>
+</ul>
+
+
+<p>LINQ 操作在 RAC 中名称有变化（但行为或多或少相同），在文档中有记载，例如：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="c1">// Maps `block` across the values in the receiver.</span>
+</span><span class='line'><span class="c1">//</span>
+</span><span class='line'><span class="c1">// This corresponds to the `Select` method in Rx.</span>
+</span><span class='line'><span class="c1">//</span>
+</span><span class='line'><span class="c1">// Returns a new stream with the mapped values.</span>
+</span><span class='line'><span class="p">-</span> <span class="p">(</span><span class="kt">instancetype</span><span class="p">)</span><span class="nf">map:</span><span class="p">(</span><span class="kt">id</span> <span class="p">(</span><span class="o">^</span><span class="p">)(</span><span class="kt">id</span> <span class="n">value</span><span class="p">))</span><span class="nv">block</span><span class="p">;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h1>4 框架概览（Framework Overview）</h1>
+
+<p>本文包含 ReactiveCocoa 框架不同组件的一些高层次的描述，并且尝试说明他们如何在一起工作，然后分别承担什么职责。
+这意味着要先理解本文，然后才学习其他新模块和其他特定文档。</p>
+
+<p>范例和如何使用 RAC，参见 <code>README</code> 或 <code>Design Guidelines</code>。</p>
+
+<h2>4.1 流（Streams）</h2>
+
+<p><code>RACStream</code> 抽象类用来描述流，是存储对象值得所有序列。</p>
+
+<p>值可以立即获得，也可以在未来某个时间获得，但必须是按顺序获取。在没有计算或等到第一个值之前是无法获取第二个值的。</p>
+
+<p>流是游离的（monads，游牧的）？还允许基于一些基本操作构建复杂的操作（特别是 <code>-bind:</code>）。
+RACStream 也从 <code>Haskell</code> 实现了 <code>Monoid</code> 和 <code>MonadZip</code> 类型类。？？</p>
+
+<p><code>RACStream</code> 自身并不是特别有用。大多数流被 <code>signal</code> 或 <code>sequences</code> 替代。</p>
+
+<h2>4.2 信号（Signals）</h2>
+
+<p><strong>signal</strong>，由 <code>RACSignal</code> 表示，是 <em>push-dirven</em> 类型的流。</p>
+
+<p>信号通常用来表示未来可能会被分发的数据。当任务完成或者数据被接受，值会被 <em>发送</em> 到信号，信号则推送他们到任何订阅者。
+用户必须订阅(subscribe)信号才能访问信号的值。</p>
+
+<p>信号提供给订阅者三种不同类型的事件：</p>
+
+<ul>
+<li><strong>next</strong> 事件提供流中的一个新值。<code>RACStream</code> 方法只操作这种类型的事件。</li>
+<li>不像 Cocoa 集合，它完全有效的信号是包括了 <code>nil</code>的.</li>
+<li><strong>error</strong> 事件表明在信号完成之前发生了错误。该事件会包含一个 <code>NSError</code> 对象表明是什么错误。</li>
+<li>错误必须特殊处理&ndash;错误不包含流中的值。</li>
+<li><strong>completed</strong> 事件表明信号成功完成了，并且完成之后不会再有值会被添加到流中。完成操作必须特殊处理&ndash;完成不包含流的值。</li>
+</ul>
+
+
+<p>信号的生命周期由任意数量的 <code>next</code> 组成，跟随者 <code>错误（error）</code> 和 <code>完成（completed）</code>
+(错误和完成二者只存在一个，不会同时存在)。</p>
+
+<h3>4.2.1 订阅（Subscription）</h3>
+
+<p><strong>订阅者</strong> 是唯一能从信号中等待或者能够从信号中等待事件的主体。在 RAC 中，订阅是任何遵从 <code>RACSubscriber</code> 协议的对象。</p>
+
+<p><strong>订阅</strong> 在 <code>-subscribeNext:error:completed:</code> 或其他相应的方法中创建。
+严格来说，大多数 <code>RACStream</code> 和 <code>RACSignal</code> 操作也能够创建订阅，
+但这些中间状态的订阅通常只是一个实现的细节（不是很明白）？？</p>
+
+<p>订阅会保留他们订阅的信号，不会自动释放除非信号完成或者出错。订阅也能够手动释放。</p>
+
+<h3>4.2.2 Subjects</h3>
+
+<p><strong>subject</strong> 用 <code>RACSubject</code> 来描述，是可以被手动控制的信号类型。</p>
+
+<p>Subjects 可以认为是可变的信号，类似 <code>NSMutableArray</code> 和 <code>NSArray</code> 的关系。在桥接非 RAC 代码和信号时很有用。</p>
+
+<p>例如，处理应用逻辑的block，可以用发送事件到共享 subject 的 block 代替。
+subject 随后返回一个 <code>RACSignal</code>，隐藏 block 的实现细节。</p>
+
+<p>某些 subject 提供额外的功能。<code>RACReplaySubject</code> 能够用来为未来的订阅者缓存事件，
+就像网络请求完成之前处理结果的东西都已准备好。</p>
+
+<h3>4.2.3 命令（Commands）</h3>
+
+<p><strong>command</strong> 用 <code>RACCommand</code> 类来表示，为某些动作响应创建和订阅信号。命令让用户与 app 交互实现副作用变的很容易。</p>
+
+<p>通常行为触发命令是由 UI 驱动的，例如一个按钮被按下。
+基于信号的命令能够自动被禁用，这个禁用状态能够用 UI 中其他任何跟命令相关的控件来描述。</p>
+
+<p>在 OS X 中，RAC 添加了一个 <code>rac_command</code> 属性到 <code>NSButton</code> 用来自动设置按钮的行为。</p>
+
+<h3>4.2.4 连接（Connections）</h3>
+
+<p><strong>连接</strong> 用 <code>RACMulticastConnectiong</code> 类来描述，是可以在任意数量的订阅者之间共享的订阅。</p>
+
+<p>信号默认是 <em>cold</em> ,意味着他们在每一次新订阅者添加的时候开始工作。
+这个行为通常是期望的，因为数据会为每个订阅者刷新和重新计算，但是如果信号有副作用或者任务代价很昂贵就会引入一些问题
+（例如发送网络请求）。</p>
+
+<p>连接通过 <code>RACSignal</code> 类的 <code>-publish</code> 或者 <code>-multicast:</code> 方法创建，
+并且不管连接有多少次订阅，确保底层只有一个订阅被创建。一旦连接建立，连接的信号宣告是 <em>hot</em> 类型，
+在这底层的订阅会保留活动状态直到连接的 <em>所有</em> 订阅都被释放。</p>
+
+<h2>4.3 序列（Sequences）</h2>
+
+<p><strong>序列</strong> 用 <code>RACSequence</code> 类来描述，是 <em>pull-driven</em> 类型的流。</p>
+
+<p>序列是一个集合，累世完成 <code>NSArray</code> 的功能。
+跟 array 不一样的是，序列的值默认是 <em>lazily</em> 的，只在序列被需要的时候才会计算，提高了效率。
+序列不能包含 <code>nil</code>。</p>
+
+<p>序列类似 <code>闭包的序列</code> 或者  <code>Haskell</code> 中的 <code>List</code> 类型。</p>
+
+<p>RAC 添加了 <code>-rac_qequence</code> 方法到大多数 Cocoa 的集合类，允许他们使用 <code>RACSequences</code> 来替代。</p>
+
+<h2>4.4 释放（Disposables）</h2>
+
+<p><strong>RACDisposable</strong> 类用来取消任务和资源清理。</p>
+
+<p>Disposables 常用于信号的取消订阅。
+当订阅被释放，响应的订阅者不会再收到信号的任何未来事件。
+并且任何订阅相关的工作（后台处理，网络请求等）都会取消，因为结果不再需要了。</p>
+
+<p>关于取消的更多信息，参见 RAC <code>Design Guidelines</code>。</p>
+
+<h2>4.5 调度（Schedulers）</h2>
+
+<p><strong>调度</strong> 用 <code>RACScheduler</code> 类来描述，是一个串行执行队列，信号在上面完成任务和分发结果。</p>
+
+<p>调度类似 GCD 队列，但调度支持取消，并且总是串行执行。
+<code>+immediateScheduler</code> 异常时，调度不会提供同步执行。这可以避免死锁，鼓励使用信号操作代替 block。</p>
+
+<p><code>RACScheduler</code> 有些方面也像 <code>NSOperatiaonQueue</code>，但调度不允许任务重新排序，也不支持依赖。</p>
+
+<h2>4.6 值类型（Value types）</h2>
+
+<p> RAC 提供少量杂项类来方便表达流中的值：</p>
+
+<ul>
+<li><strong>RACTuple</strong> 是个小的，固定带笑傲的集合，能够包含 <code>nil</code>（用 <code>RACTupleNil</code> 表示）。经常用来表示多个流中合并的值。</li>
+<li><strong>RACUnit</strong> 是空值得单例。用来表示流中某些时候没有存在意义的数据。</li>
+<li><strong>RACEvent</strong> 表示任意信号事件。主要被 <code>RACSignal</code> 类的 <code>-materialize</code> 方法使用。</li>
+</ul>
+
+
+<h1>5. 内存管理（Memory Management）</h1>
+
+<p>ReactiveCocoa 的内存管理非常复杂，但最终结果是
+<strong>处理信号时，你并不需要保留他们</strong>。</p>
+
+<p>如果框架要求你保留每一个信号，那这个框架使用起来就太笨重，特别是一次性的信号用于未来某个时候。
+你不需要保留任何长时间活跃的信号到属性中，然后确保用完之后再清除。这样可没劲了。</p>
+
+<h2>5.1 订阅者（Subscribers）</h2>
+
+<p>无论去哪之前， <code>subscribeNext:error:completed:</code> （还有所有其所有变量）创建一个 <em>隐式</em> 的订阅者使用给定的block。
+任何这些 block 引用的对象会被保留为订阅的一部分。就像其他对象，<code>self</code> 不会被保留除非有一个对它直接或间接的引用。</p>
+
+<h2>5.2 有限或短暂的信号（Finite or Short-Lived Signals）</h2>
+
+<p>RAC 内存管理最重要的原则是 <strong>订阅在完成后错误时自动终止，订阅者会被移除</strong></p>
+
+<p>例如，如果你的 view controller 中的代码如下：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="nb">self</span><span class="p">.</span><span class="n">disposable</span> <span class="o">=</span> <span class="p">[</span><span class="n">signal</span> <span class="nl">subscribeCompleted</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
+</span><span class='line'>    <span class="n">doSomethingPossiblyInvolving</span><span class="p">(</span><span class="nb">self</span><span class="p">);</span>
+</span><span class='line'><span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>… the memory management will look something like the following:</p>
+
+<p>那么内存管理会是下面的流程：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="n">view</span> <span class="n">controller</span> <span class="o">-&gt;</span> <span class="n">RACDisposable</span> <span class="o">-&gt;</span> <span class="n">RACSignal</span> <span class="o">-&gt;</span> <span class="n">RACSubscriber</span> <span class="o">-&gt;</span> <span class="n">view</span> <span class="n">controller</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>然而， <code>RACSignal -&gt; RACSubscriber</code> 的关系会在信号完成时立刻解除，打破保留环。</p>
+
+<p><strong>这是你需要的</strong>，因为 <code>RACSignal</code> 的生命周期会自然而然的匹配时间流的逻辑生命周期。</p>
+
+<h2>5.3 无限信号（Infinite Signals）</h2>
+
+<p>Infinite signals (or signals that live so long that they might as well be
+infinite), however, will never tear down naturally. This is where disposables
+shine.</p>
+
+<p><strong>Disposing of a subscription will remove the associated subscriber</strong>, and just</p>
+
+<p>无限信号（或者说永远存活的信号），不会被自动清除。</p>
+
+<p><strong>释放订阅会移除相关的订阅者</strong>，并且会清除订阅相关的任何资源。</p>
+
+<p>作为一个一般的经验法则，如果你需要手动管理订阅的生命周期，那可能存在更好的方式做到你想要的，请避免显示的订阅和释放。</p>
+
+<h2>5.4 从 <code>self</code> 分发的信号（Signals Derived from <code>self</code>）</h2>
+
+<p>还是有些比较棘手的情况的。任何时候一个信号的生命周期被绑在一个调用范围时，会比较难打破循环。</p>
+
+<p>这种情况通常发生在关键路径上使用 <code>RACObserve()</code>，而关键路径又与 <code>self</code> 关联，然后应用的 block 有需要捕获 <code>self</code>。</p>
+
+<p>最简单的解决方案是 <strong>捕获 self 弱引用</strong>。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="k">__weak</span> <span class="kt">id</span> <span class="n">weakSelf</span> <span class="o">=</span> <span class="nb">self</span><span class="p">;</span>
+</span><span class='line'><span class="p">[</span><span class="n">RACObserve</span><span class="p">(</span><span class="nb">self</span><span class="p">,</span> <span class="n">username</span><span class="p">)</span> <span class="nl">subscribeNext</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="n">username</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="kt">id</span> <span class="n">strongSelf</span> <span class="o">=</span> <span class="n">weakSelf</span><span class="p">;</span>
+</span><span class='line'>    <span class="p">[</span><span class="n">strongSelf</span> <span class="n">validateUsername</span><span class="p">];</span>
+</span><span class='line'><span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>或者，在导入 <code>EXTScope.h</code> 头文件之后：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="p">@</span><span class="n">weakify</span><span class="p">(</span><span class="nb">self</span><span class="p">);</span>
+</span><span class='line'><span class="p">[</span><span class="n">RACObserve</span><span class="p">(</span><span class="nb">self</span><span class="p">,</span> <span class="n">username</span><span class="p">)</span> <span class="nl">subscribeNext</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="n">username</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="p">@</span><span class="n">strongify</span><span class="p">(</span><span class="nb">self</span><span class="p">);</span>
+</span><span class='line'>    <span class="p">[</span><span class="nb">self</span> <span class="n">validateUsername</span><span class="p">];</span>
+</span><span class='line'><span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><em>如果对象不支持若引用，那么用 <code>__unsafe_unretained</code> 或 <code>@unsafeify</code> 分别替换 <code>__weak</code> 或 <code>@weakify</code></em>
+例如，上面的示例可以像下面这么写：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="p">[</span><span class="nb">self</span> <span class="nl">rac_liftSelector</span><span class="p">:</span><span class="k">@selector</span><span class="p">(</span><span class="nl">validateUsername</span><span class="p">:)</span> <span class="nl">withSignals</span><span class="p">:</span><span class="n">RACObserve</span><span class="p">(</span><span class="nb">self</span><span class="p">,</span> <span class="n">username</span><span class="p">),</span> <span class="nb">nil</span><span class="p">];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>或者:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="n">RACSignal</span> <span class="o">*</span><span class="n">validated</span> <span class="o">=</span> <span class="p">[</span><span class="n">RACObserve</span><span class="p">(</span><span class="nb">self</span><span class="p">,</span> <span class="n">username</span><span class="p">)</span> <span class="nl">map</span><span class="p">:</span><span class="o">^</span><span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="n">username</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="c1">// Put validation logic here.</span>
+</span><span class='line'>    <span class="k">return</span> <span class="m">@YES</span><span class="p">;</span>
+</span><span class='line'><span class="p">}];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>无限的信号，通常可以从信号链的 block 避开引用 <code>self</code>（或任何对象）。</p>
+
+<hr />
+
+<p>上面的信息是高效使用 ReactiveCocoa 所需要的一切。然而，还有很多只为技术上的好奇心或者对 RAC 感兴趣的声音存在。</p>
+
+<p>“不需要保留”的设计目标引入如下问题：我们如何知道信号什么时候需要被释放？如果信号刚创建，没被自动释放池管理，没有被保留的话。</p>
+
+<p>正确的回答是 <code>我们不需要</code>，但我们通常确保调用者如果想保留信号，会在当前运行循环迭代中保留它。</p>
+
+<p>因此：</p>
+
+<ol>
+<li>一个被创建的信号自动被添加到激活信号集合中。</li>
+<li>信号会等一个主运行循环，然后如果没有订阅者订阅它就会从激活信号集中移除。除非信号被什么保留了，否则会被释放。</li>
+<li>如果在运行循环迭代中订阅发生了，信号会留在集合中。</li>
+<li>最后，如果所有订阅者已过去，步骤2就会再被触发。</li>
+</ol>
+
+
+<p>如果运行循环是spun recursively（纺递归是什么鬼？就像 OS X中的模态事件）那就适得其反了。但是让框架的用户使用方便比任何其他事情都重要。</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[iOS 开发随笔记录]]></title>
