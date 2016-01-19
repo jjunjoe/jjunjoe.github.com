@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "ReactiveCocoa Document 翻译 V2.5"
+title: "ReactiveCocoa Document V2.5 翻译"
 date: 2015-08-25 23:16:06 +0800
 comments: true
 categories: 
