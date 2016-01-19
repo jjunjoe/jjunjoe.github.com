@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Core Bluetooth Programming Guide 中文翻译"
+title: "Core Bluetooth Programming Guide 翻译"
 date: 2014-07-02 20:43:57 +0800
 comments: true
 categories: Apple Programming Guide
