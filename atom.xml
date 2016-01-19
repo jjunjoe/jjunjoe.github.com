@@ -4,7 +4,7 @@
   <title><![CDATA[Joe’s Home]]></title>
   <link href="http://jjunjoe.github.io/atom.xml" rel="self"/>
   <link href="http://jjunjoe.github.io/"/>
-  <updated>2016-01-19T10:02:07+08:00</updated>
+  <updated>2016-01-19T10:10:26+08:00</updated>
   <id>http://jjunjoe.github.io/</id>
   <author>
     <name><![CDATA[Joe]]></name>
@@ -12,6 +12,15 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[SVN 常用操作记录]]></title>
+    <link href="http://jjunjoe.github.io/blog/2016/01/19/svn-chang-yong-cao-zuo-ji-lu/"/>
+    <updated>2016-01-19T10:07:10+08:00</updated>
+    <id>http://jjunjoe.github.io/blog/2016/01/19/svn-chang-yong-cao-zuo-ji-lu</id>
+    <content type="html"><![CDATA[
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[ReactiveCocoa Document V2.5 翻译]]></title>
@@ -1722,7 +1731,7 @@ nib 的 File&rsquo;s Owner 连接到顶层对象的 outlet，应该使用 strong
   </entry>
   
   <entry>
-    <title type="html"><![CDATA[Core Bluetooth Programming Guide 中文翻译]]></title>
+    <title type="html"><![CDATA[Core Bluetooth Programming Guide 翻译]]></title>
     <link href="http://jjunjoe.github.io/blog/2014/07/02/core-bluetooth-programming-guide/"/>
     <updated>2014-07-02T20:43:57+08:00</updated>
     <id>http://jjunjoe.github.io/blog/2014/07/02/core-bluetooth-programming-guide</id>
