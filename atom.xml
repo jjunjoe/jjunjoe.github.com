@@ -4,7 +4,7 @@
   <title><![CDATA[Joe’s Home]]></title>
   <link href="http://jjunjoe.github.io/atom.xml" rel="self"/>
   <link href="http://jjunjoe.github.io/"/>
-  <updated>2016-01-19T09:57:00+08:00</updated>
+  <updated>2016-01-19T10:02:07+08:00</updated>
   <id>http://jjunjoe.github.io/</id>
   <author>
     <name><![CDATA[Joe]]></name>
@@ -14,7 +14,7 @@
 
   
   <entry>
-    <title type="html"><![CDATA[ReactiveCocoa Document 翻译 V2.5]]></title>
+    <title type="html"><![CDATA[ReactiveCocoa Document V2.5 翻译]]></title>
     <link href="http://jjunjoe.github.io/blog/2015/08/25/reactivecocoa-document-fan-yi-v2-dot-5/"/>
     <updated>2015-08-25T23:16:06+08:00</updated>
     <id>http://jjunjoe.github.io/blog/2015/08/25/reactivecocoa-document-fan-yi-v2-dot-5</id>
