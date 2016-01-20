@@ -1,0 +1,459 @@
+---
+layout: post
+title: "React Native  学习笔记01 - 组件"
+date: 2016-01-20 09:01:23 +0800
+comments: true
+categories: 前端,Reactive Native
+---
+
+如果熟悉了 React，那么 React Native 就很容易上手了。实际上 React Native 的组件就是 React	组件。本文主要介绍 React 组件的通信方式，网上大部分例子是 React 的，我因为没有前端开发背景，所以 React 也不熟悉，索性以 React Native 来作为例子吧。
+
+## 一、组件之间的关系
+组件之间主要有两种关系：
+
+* 父子关系：父子关系是针对 DOM 结构的。
+* 从属关系：从属关系是针对 React 组件，是所有和被所有的关系。
+
+### 1.1、父子关系
+父子关系是针对 DOM 结构的，就是 DOM 里的标签关系。外围的标签代表的组件与它包含的标签代表的组件是父子关系。
+
+### 1.2、从属关系
+从属关系是 Rect 特有的，所有者就是可以设置其他组件 props 的组件。可以这么理解：如果组件 X 出现在了组件 Y 的 render() 方法中，那么组件 Y 就是所有者，组件 X 就是被所有者。
+
+### 1.3、举例说明父子关系和从属关系
+React 官网上是以一个展现个人图片和用户名的简单 Avatar 组件来描述组件关系的，稍微修改一下，以 React Native 展示如下：
+
+
+	/**
+	 * Sample React Native App
+	 * https://github.com/facebook/react-native
+	 */
+	'use strict';
+	
+	var React = require('react-native');
+	
+	/*
+	* 这是一种解构赋值，准许你获取对象的多个属性并且使用一条语句将它们赋给多个变量。
+	* 结果是，后面的代码中可以省略掉 React 前缀
+	* */
+	var {
+	  AppRegistry,
+	  StyleSheet,
+	  Image,
+	  View,
+	  //Text, // 这里故意注释掉 Text, 那么下面用到 Text 的地方就需要使用 React.Text
+	  } = React;
+	
+	/*
+	* ProfilePic
+	* 头像组件
+	* */
+	var ProfilePic = React.createClass({
+	  render: function(){
+	    return (
+	      <Image
+	        style={styles.logo}
+	        source={{uri: 'http://facebook.github.io/react/img/logo_og.png'}}>
+	      </Image>
+	    );
+	  }
+	});
+	
+	/*
+	* 用户名
+	* */
+	var ProfileLink = React.createClass({
+	
+	  _onPress: function(){
+	    /*
+	    * 被点击之后的事件响应方法_onPress
+	    * 然后在_onPress中传递一个值到父组件
+	    * */
+	    console.log('ProifileLink onPress')
+	    this.props.callbackParent('Give you a string');
+	  },
+	
+	  render: function() {
+	    return (
+	      <React.Text>
+	        Name:
+	        <React.Text /*解构赋值中没有添加Text,所以用Text的时候就需要用 R*/
+	          suppressHighlighting={false}
+	          style={styles.link}
+	          onPress={this._onPress}
+	        >
+	          {this.props.username}
+	        </React.Text>
+	      </React.Text>
+	    );
+	  }
+	});
+	
+	/*
+	* 如下的代码,
+	* View 是 ProfilePic 和 ProfileLink 的父组件, 因为 ProfilePic 和 ProfileLink 都是在 View 的标签内.
+	* 但是 View 不是 ProfilePic 和 ProfileLink 的拥有者, 因为 ProfilePic 和 ProfileLink 不在 View 的 render 方法中创建.
+	*
+	* RNStudy 是View, ProfilePic 和 ProfileLink 的拥有者, 因为 View, ProfilePic 和 ProfileLink 在 View 的 render 方法中创建.
+	* */
+	var RNStudy = React.createClass({
+	
+	  linkPressed: function(str){
+	    console.log('str: ' + str);
+	  },
+	
+	  render: function() {
+	    return (
+	      <View style={styles.container}>
+	        <ProfilePic>
+	        </ProfilePic>
+	        <ProfileLink
+	          username='JOE'
+	          callbackParent={this.linkPressed}
+	        >
+	          /*这里通过设置子组件 ProfiLeLink 的 username props
+	          来给子组件传递值*/
+	        </ProfileLink>
+	      </View>
+	    );
+	  }
+	});
+	
+	var styles = StyleSheet.create({
+	  container: {
+	    flex: 1,
+	    justifyContent: 'center',
+	    alignItems: 'center',
+	    backgroundColor: '#F5FCFF',
+	  },
+	  logo:{
+	    width: 100,
+	    height: 100,
+	    justifyContent: 'center',
+	    alignItems: 'center',
+	  },
+	  link:{
+	    backgroundColor: 'white',
+	    textDecorationLine: 'underline',
+	    color: 'blue',
+	  },
+	});
+	
+	AppRegistry.registerComponent('RNStudy', () => RNStudy);
+
+
+## 二、组件之间的通信
+上面一节内容了解了组件之间的关系，我们就应该学习组件之间的通信了。  
+组件之间通信有三种：
+
+1. 父组件-->子组件；
+2. 子组件-->父组件；
+3. 无父子关系（即无标签嵌套关系）组件通信。
+
+### 2.1. 父组件-->子组件
+父组件直接将值赋值给子组件的 props。  
+如上例中 render() 方法中代码 ``` username='JOE' ``` 就是父组件 RNStudy 通过子组件 ProfileLink 的 props username 传递值到子组件：
+
+	var RNStudy = React.createClass({
+	
+	  linkPressed: function(str){
+	    console.log('str: ' + str);
+	  },
+	
+	  render: function() {
+	    return (
+	      <View style={styles.container}>
+	        <ProfilePic>
+	        </ProfilePic>
+	        <ProfileLink
+	          username='JOE'
+	          callbackParent={this.linkPressed}
+	        >
+	          /*这里通过设置子组件 ProfiLeLink 的 username props
+	          来给子组件传递值*/
+	        </ProfileLink>
+	      </View>
+	    );
+	  }
+	});
+
+### 2.2. 子组件-->父组件
+子组件需要通过回调传递值到父组件，上面的例子中，点击 ProfileLink 的用户名，会触发 _onPress 方法，在 _onPress 方法中调用 props 的回调方法 callbackParent，从子组件传值到父组件。
+
+	
+	/*
+	* 用户名
+	* */
+	var ProfileLink = React.createClass({
+	
+	  _onPress: function(){
+	    /*
+	    * 被点击之后的事件响应方法_onPress
+	    * 然后在_onPress中传递一个值到父组件
+	    * */
+	    console.log('ProifileLink onPress')
+	    this.props.callbackParent('Give you a string');
+	  },
+	
+	  render: function() {
+	    return (
+	      <React.Text>
+	        Name:
+	        <React.Text /*解构赋值中没有添加Text,所以用Text的时候就需要用 R*/
+	          suppressHighlighting={false}
+	          style={styles.link}
+	          onPress={this._onPress}
+	        >
+	          {this.props.username}
+	        </React.Text>
+	      </React.Text>
+	    );
+	  }
+	});
+	
+	/*
+	* 如下的代码,
+	* View 是 ProfilePic 和 ProfileLink 的父组件, 因为 ProfilePic 和 ProfileLink 都是在 View 的标签内.
+	* 但是 View 不是 ProfilePic 和 ProfileLink 的拥有者, 因为 ProfilePic 和 ProfileLink 不在 View 的 render 方法中创建.
+	*
+	* RNStudy 是View, ProfilePic 和 ProfileLink 的拥有者, 因为 View, ProfilePic 和 ProfileLink 在 View 的 render 方法中创建.
+	* */
+	var RNStudy = React.createClass({
+	
+	  linkPressed: function(str){
+	    console.log('str: ' + str);
+	  },
+	
+	  render: function() {
+	    return (
+	      <View style={styles.container}>
+	        <ProfilePic>
+	        </ProfilePic>
+	        <ProfileLink
+	          username='JOE'
+	          callbackParent={this.linkPressed}
+	        >
+	          /*这里通过设置子组件 ProfiLeLink 的 username props
+	          来给子组件传递值*/
+	        </ProfileLink>
+	      </View>
+	    );
+	  }
+	});
+
+
+上面的例子比较挫，传给父组件的值是一个固定字符串，下面稍微改一下，可以在子组件 ProfileLink 的文本输入框 TextInput 中修改用户名，将子组件修改的值在子组件自身的界面和父组件 RNStudy 的界面都实时刷新：
+
+	
+	/**
+	 * Sample React Native App
+	 * https://github.com/facebook/react-native
+	 */
+	'use strict';
+	
+	var React = require('react-native');
+	
+	/*
+	 * 这是一种解构赋值，准许你获取对象的多个属性并且使用一条语句将它们赋给多个变量。
+	 * 结果是，后面的代码中可以省略掉 React 前缀
+	 * */
+	var {
+	  AppRegistry,
+	  StyleSheet,
+	  Image,
+	  View,
+	  //Text, // 这里故意注释掉 Text, 那么下面用到 Text 的地方就需要使用 React.Text
+	  TextInput,
+	  } = React;
+	
+	/*
+	 * ProfilePic
+	 * 头像组件
+	 * */
+	var ProfilePic = React.createClass({
+	  render: function(){
+	    return (
+	      <Image
+	        style={styles.logo}
+	        source={{uri: 'http://facebook.github.io/react/img/logo_og.png'}}>
+	      </Image>
+	    );
+	  }
+	});
+	
+	/*
+	 * ProfileLink
+	 * 用户名组件
+	 * */
+	var ProfileLink = React.createClass({
+	
+	  /*
+	  * 用于验证传入组件的 props
+	  * 通过参考 propTypes 来决定如何设置组件的 props.
+	  * */
+	  propTypes: {
+	    username: React.PropTypes.string.isRequired,
+	    callbackParent: React.PropTypes.func,
+	  },
+	
+	  /*
+	  初始化 state
+	  * */
+	  getInitialState: function() {
+	    return {
+	      curText: this.props.username,
+	    };
+	  },
+	
+	  updateText: function(text) {
+	
+	    /*调用回调函数,将值从子组件 ProfileLink 传递到父组件
+	    * */
+	    this.props.callbackParent(text);
+	
+	    /*常用的通知 React 数据变化的方法是调用 setState(data, callback)。
+	    这个方法会合并（merge） data 到 this.state，并重新渲染组件。
+	    渲染完成后，调用可选的 callback 回调。*/
+	    this.setState((state) => {
+	      return {
+	        curText: text,
+	      };
+	    });
+	  },
+	
+	  render: function() {
+	    return (
+	      <View style={styles.nameContainer}>
+	        <TextInput
+	          style={styles.textInputStyle}
+	          placeholder={this.props.username}
+	
+	          /*onChange 是TextInput 内置的方法,文本内容变化时调用*/
+	          onChange={(event) => this.updateText(event.nativeEvent.text)}
+	        >
+	        </TextInput>
+	        {/*state 更新时,会重新渲染*/}
+	        {/*由于 Text 没在解构式中,所以这里要用 React.Text*/}
+	        <React.Text style={styles.eventLabel}>
+	          Name:{this.state.curText}{'\n'}
+	        </React.Text>
+	      </View>
+	    );
+	  }
+	});
+	
+	/*
+	 * 如下的代码,
+	 * View 是 ProfilePic 和 ProfileLink 的父组件, 因为 ProfilePic 和 ProfileLink 都是在 View 的标签内.
+	 * 但是 View 不是 ProfilePic 和 ProfileLink 的拥有者, 因为 ProfilePic 和 ProfileLink 不在 View 的 render 方法中创建.
+	 *
+	 * RNStudy 是View, ProfilePic 和 ProfileLink 的拥有者, 因为 View, ProfilePic 和 ProfileLink 在 View 的 render 方法中创建.
+	 * */
+	var RNStudy = React.createClass({
+	
+	  getInitialState: function() {
+	    return {
+	      curText: '',
+	    };
+	  },
+	
+	  updateText: function(text) {
+	    this.setState((state) => {
+	      return {
+	        curText: text,
+	      };
+	    });
+	  },
+	
+	  render: function() {
+	    return (
+	      <View style={styles.container}>
+	        <ProfilePic>
+	        </ProfilePic>
+	        <ProfileLink
+	          /*这里通过设置子组件 ProfiLeLink 的 username props
+	          来给子组件传递值*/
+	          username='JOE'
+	          /*设置回调函数,以便子组件能将值通过回调传给父组件
+	          * */
+	          callbackParent={this.updateText}
+	        >
+	        </ProfileLink>
+	        <React.Text style={styles.eventLabel}>
+	          传给父组件:{this.state.curText}
+	        </React.Text>
+	      </View>
+	    );
+	  }
+	});
+	
+	var styles = StyleSheet.create({
+	  container: {
+	    flexDirection: 'column',
+	    flex: 1,
+	    justifyContent: 'center',
+	    alignItems: 'center',
+	    backgroundColor: '#F5FCFF',
+	  },
+	  logo:{
+	    width: 100,
+	    height: 100,
+	    justifyContent: 'center',
+	    alignItems: 'center',
+	  },
+	  nameContainer:{
+	    width: 100,
+	    height: 44,
+	    paddingVertical: 4,
+	  },
+	  eventLabel: {
+	    margin: 3,
+	    fontSize: 12,
+	  },
+	  textInputStyle:{
+	    height: 26,
+	    borderWidth: 0.5,
+	    borderColor: '#0f0f0f',
+	    fontSize: 13,
+	  },
+	});
+	
+	AppRegistry.registerComponent('RNStudy', () => RNStudy);
+
+
+
+### 2.3. 无父子关系（即无标签嵌套关系）组件通信
+React 官网是这么说的：
+> 对于没有 父-子 关系的组件间的通信，你可以设置你自己的全局事件系统。在componentDidMount() 里订阅事件，在 componentWillUnmount() 里退订，然后在事件回调里调用 setState()。
+
+从网上查了一些资料[原文点这里](http://ctheu.com/2015/02/12/how-to-communicate-between-react-components/#child_to_parent)，介绍了三种模式：
+#### 2.3.1 Event Emitter/Target/Dispatcher : 监听者需要一个指定的订阅源。
+* to subscribe :   
+		
+		otherObject.addEventListener(‘click’, function() { alert(‘click!’); });
+		
+* to dispatch :   
+
+		this.dispatchEvent(‘click’);
+ 
+#### 2.3.2 Publish / Subscribe : 不需要引用一个特定的订阅源来触发事件，因为任何处理事件的地方都是使用的全局对象。
+* to subscribe :  
+
+		globalBroadcaster.subscribe(‘click’, function() { alert(‘click!’); });
+		
+* to dispatch :   
+
+		globalBroadcaster.publish(‘click’);
+ 
+#### 2.3.2 Signals : 类似 Event Emitter/Target/Dispatcher 但不需要使用任何随机的字符串。每一个可以触发事件的对象都由一个特定的对象触发的事件。
+* to subscribe :   
+
+		otherObject.clicked.add(function() { alert(‘click’); });
+		
+* to dispatch :   
+	
+		this.clicked.dispatch();
+
+#### 2.3.4 来个例子：
+<mark>待完成......<mark>
+
