@@ -64,7 +64,7 @@ categories:
 
 * 反向合并  
 
-		svn merge -r rHEAD:$to_revision "$comment info"  
+		svn merge -r rHEAD:$to_revision "."  
 
 * 提交合并后的修改  
 
